@@ -1,0 +1,111 @@
+{
+  "model_version": "wifi-radar-2",
+  "arch": "v2",
+  "normalize": true,
+  "labels": [
+    "empty_room",
+    "person_static",
+    "movement",
+    "fall_detection"
+  ],
+  "fs": 50,
+  "window_length": 64,
+  "seed": 7,
+  "recordings": {
+    "train": 136,
+    "val": 32,
+    "test": 32
+  },
+  "windows": {
+    "train": 6735,
+    "val": 1563,
+    "test": 1561
+  },
+  "best_val_macro_f1": 0.782509,
+  "test": {
+    "accuracy": 0.7885970531710442,
+    "macro_f1": 0.7407597092568892,
+    "balanced_accuracy": 0.7350516520786999,
+    "per_class": {
+      "empty_room": {
+        "precision": 0.8219780219780219,
+        "recall": 0.7957446808510639,
+        "f1": 0.8086486486486487
+      },
+      "person_static": {
+        "precision": 0.6844349680170576,
+        "recall": 0.7278911564625851,
+        "f1": 0.7054945054945055
+      },
+      "movement": {
+        "precision": 0.9083665338645418,
+        "recall": 0.9620253164556962,
+        "f1": 0.9344262295081969
+      },
+      "fall_detection": {
+        "precision": 0.5925925925925926,
+        "recall": 0.45454545454545453,
+        "f1": 0.5144694533762058
+      }
+    },
+    "confusion_matrix": [
+      [
+        374,
+        93,
+        0,
+        3
+      ],
+      [
+        80,
+        321,
+        0,
+        40
+      ],
+      [
+        1,
+        5,
+        456,
+        12
+      ],
+      [
+        0,
+        50,
+        46,
+        80
+      ]
+    ],
+    "confidence_interval_95": {
+      "recordings": 32,
+      "accuracy": [
+        0.6937141809419037,
+        0.8730585501983216
+      ],
+      "macro_f1": [
+        0.6445497913544697,
+        0.8100478414453085
+      ]
+    },
+    "calibration": {
+      "temperature": 1.1630778584411388,
+      "nll_before": 0.6237996749640559,
+      "nll_after": 0.6091562499054687,
+      "ece_before": 0.07568144618667867,
+      "ece_after": 0.03364101092324322,
+      "brier": 0.32014483073903277
+    },
+    "selective": {
+      "confidence_threshold": 0.65,
+      "threshold_selection": {
+        "reached_target": false,
+        "threshold": 0.65,
+        "note": "target accuracy not reachable on validation data; using the default threshold"
+      },
+      "coverage": 0.8750800768737989,
+      "accuracy_when_answering": 0.8265007320644217,
+      "novel_fraction": 0.0,
+      "novelty_threshold": 7.081510888942801
+    }
+  },
+  "trained_at": "2026-11-16 00:29:07",
+  "warning": "Test recordings come from the same room/person as training unless you recorded in several rooms. Re-test in a new room before trusting it."
+}

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WiFi Radar</title>
+<style>
+:root{--bg:#f1f5f9;--card:#ffffff;--line:#d8e1ec;--tx:#14213d;--mut:#64748b;--ac:#2563eb;--warn:#d97706;--bad:#dc2626}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.55 'IBM Plex Sans Arabic','Segoe UI',Tahoma,Arial,sans-serif;padding:18px}
+.w{max-width:900px;margin:0 auto}
+.top{display:flex;justify-content:space-between;align-items:center}
+h1{font-size:20px;margin:0}h3{margin:0 0 8px;font-size:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:12px}
+.chip{display:inline-block;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--mut);font-size:12px;margin:2px}
+.chip.ok{color:var(--ac);border-color:var(--ac)}.chip.bad{color:var(--bad);border-color:var(--bad)}.chip.warn{color:var(--warn);border-color:var(--warn)}
+#big{text-align:center;font-size:44px;font-weight:800;margin:8px 0;min-height:56px}
+#big.u{color:var(--mut)}
+.bars{display:grid;gap:5px;margin-top:8px}
+.bar{display:grid;grid-template-columns:110px 1fr 46px;gap:8px;align-items:center;font-size:13px;color:var(--mut)}
+.bar i{display:block;height:9px;border-radius:5px;background:var(--ac);transition:width .3s}
+.bar div{background:#e8eef6;border-radius:5px;overflow:hidden}
+canvas{width:100%;display:block;border-radius:10px;background:#f8fafc;border:1px solid var(--line)}
+label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+input,select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--tx);font-size:15px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.g{grid-template-columns:1fr}}
+button{border:0;border-radius:10px;padding:11px 18px;font-weight:700;font-size:15px;cursor:pointer;margin-top:12px}
+.p{background:var(--ac);color:#fff}.s{background:#fff;color:var(--tx);border:1px solid var(--line);font-weight:600}
+.d{background:transparent;color:var(--bad);border:1px solid var(--bad);padding:3px 10px;font-size:12px;margin:0}
+button:disabled{opacity:.45;cursor:default}
+.hint{color:var(--mut);font-size:12px;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:start;color:var(--mut)}td:first-child{color:var(--tx)}
+progress{width:100%;height:10px;margin-top:10px}
+pre{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px;max-height:180px;overflow:auto;color:#334155;margin:10px 0 0;direction:ltr;text-align:left}
+#rbig{font-size:30px;font-weight:800;text-align:center;margin-top:10px}
+.lang{background:transparent;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:5px 12px;margin:0;font-size:13px}
+.tile{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px;min-height:104px}
+.tile small{display:block;color:var(--mut);font-size:12px}.tile strong{display:block;font-size:21px;margin-top:5px}.tile p{color:var(--mut);font-size:12px;margin:3px 0 0;overflow-wrap:anywhere}
+.tile.alert{border-color:var(--bad);background:#fff1f2}.tile.good{border-color:var(--ac);background:#eff6ff}
+.notify-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.notify-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#f8fafc;color:var(--tx);font-size:14px;margin:0}
+.notify-item input{width:20px;height:20px;accent-color:var(--ac);flex:0 0 auto}
+.event-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.event-row:last-child{border-bottom:0}.event-time{color:var(--mut);white-space:nowrap;font-size:11px}
+#eventToast{display:none;position:fixed;bottom:18px;left:18px;right:18px;max-width:480px;margin:auto;background:#14213d;color:#fff;padding:14px 16px;border-radius:12px;box-shadow:0 12px 32px rgba(20,33,61,.22);z-index:20}
+#eventToast.show{display:block}
+.eyebrow{font-size:11px;letter-spacing:.08em;color:var(--ac);font-weight:800;text-transform:uppercase}
+@media(max-width:600px){.notify-grid{grid-template-columns:1fr}}
+button.warnbtn{background:var(--warn);color:#19130a}.subtle{font-size:12px;color:var(--mut);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="w">
+<div class="top"><div><div class="eyebrow">WIRELESS SENSING · RESEARCH SYSTEM</div><h1>WiFi Radar <span style="color:var(--mut);font-size:13px" data-i="edition_label"></span></h1><div class="hint" data-i="sub"></div></div><button class="lang" id="lg">EN</button></div>
+
+<div class="card">
+  <h3 data-i="monitor_t"></h3>
+  <div class="g">
+    <div class="tile" id="presenceTile"><small data-i="presence_t"></small><strong id="presenceValue">غير معاير</strong><p id="presenceInfo"></p></div>
+    <div class="tile" id="motionTile"><small data-i="motion_t"></small><strong id="motionValue">—</strong><p id="motionInfo"></p></div>
+    <div class="tile" id="fallTile"><small data-i="fall_t"></small><strong id="fallValue">—</strong><p id="fallInfo"></p></div>
+     <div class="tile" id="doorTile"><small data-i="door_t"></small><strong id="doorValue">—</strong><p id="doorInfo"></p></div>
+  </div>
+  <button class="p" id="calgo" data-i="cal_go"></button>
+  <button class="s" id="calstop" data-i="cal_stop"></button>
+  <button class="warnbtn" id="fallack" data-i="fall_ack" style="display:none"></button>
+  <div class="subtle" id="calmsg"></div>
+  <div class="hint" data-i="safety_note"></div>
+</div>
+
+<div class="card" id="notificationPanel">
+  <h3 data-i="notify_title"></h3>
+  <p class="hint" data-i="notify_hint"></p>
+  <div class="notify-grid">
+    <label class="notify-item"><span data-i="notif_fall"></span><input type="checkbox" id="notif_fall"></label>
+    <label class="notify-item"><span data-i="notif_movement"></span><input type="checkbox" id="notif_movement"></label>
+    <label class="notify-item"><span data-i="notif_presence"></span><input type="checkbox" id="notif_presence"></label>
+    <label class="notify-item"><span data-i="notif_empty_room"></span><input type="checkbox" id="notif_empty_room"></label>
+    <label class="notify-item"><span data-i="notif_door"></span><input type="checkbox" id="notif_door_presence"></label>
+    <label class="notify-item"><span data-i="notif_offline"></span><input type="checkbox" id="notif_device_offline"></label>
+    <label class="notify-item"><span data-i="notif_csi"></span><input type="checkbox" id="notif_csi_quality"></label>
+  </div>
+  <button class="s" id="enableBrowserNotifications" data-i="enable_browser_notifications"></button>
+  <div class="hint" id="notifyStatus"></div>
+  <div id="eventToast" role="status" aria-live="polite"></div>
+</div>
+
+<div class="card" id="eventPanel">
+  <h3 data-i="events_title"></h3>
+  <div id="eventList" class="hint">—</div>
+</div>
+
+<div class="card" id="apiTokenPanel">
+  <h3 data-i="api_token_title"></h3>
+  <p class="hint" data-i="api_token_hint"></p>
+  <input id="apiToken" type="text" readonly autocomplete="off" spellcheck="false">
+  <button class="s" id="copyApiToken" data-i="copy_api_token"></button>
+</div>
+
+<div class="card">
+  <h3 data-i="activity_t"></h3>
+  <div id="chips"></div>
+  <div id="big" class="u">…</div>
+  <div class="bars" id="bars"></div>
+  <div class="hint" id="modelmsg"></div>
+  <canvas id="heat" height="140"></canvas>
+  <div class="hint" data-i="heat_h"></div>
+  <canvas id="en" height="60" style="margin-top:10px"></canvas>
+</div>
+
+<div class="card" data-factory-only>
+  <h3 data-i="rec_t"></h3>
+  <div class="g">
+    <div><label data-i="act"></label><select id="lab"></select></div>
+    <div><label data-i="person"></label><input id="person" placeholder="P1" autocomplete="off"></div>
+    <div><label data-i="room"></label><input id="room" placeholder="living_room" autocomplete="off"></div>
+    <div><label data-i="secs"></label><input id="secs" type="number" value="20" min="5" max="300"></div>
+  </div>
+  <div class="hint" id="labhint"></div>
+  <button class="p" id="rgo" data-i="rec_go"></button>
+  <button class="s" id="rstop" data-i="rec_stop"></button>
+  <div id="rbig"></div>
+  <div class="hint" id="rmsg"></div>
+  <table id="takes"></table>
+  <div class="hint" data-i="rec_tip"></div>
+</div>
+
+<div class="card" data-factory-only>
+  <h3 data-i="tr_t"></h3>
+  <div class="g">
+    <div><label data-i="epochs"></label><input id="ep" type="number" value="30" min="1" max="200"></div>
+  </div>
+  <button class="p" id="tgo" data-i="tr_go"></button>
+  <button class="s" id="tstop" data-i="tr_stop"></button>
+  <progress id="tpr" value="0" max="100" style="display:none"></progress>
+  <div id="tres" class="hint"></div>
+  <pre id="tlog" style="display:none"></pre>
+</div>
+</div>
+
+<script>
+const D={
+ar:{sub:"استشعار CSI · أربع فئات: غرفة فارغة، شخص ثابت، حركة، اكتشاف سقوط",door_t:"حساس الباب HC-SR04",door_offline:"الحساس غير متصل",door_present:"شخص عند الباب",door_clear:"لا يوجد شخص عند الباب",door_distance:"المسافة",api_token_title:"رمز ربط تطبيق الموبايل",enable_browser_notifications:"تفعيل إشعارات المتصفح",api_token_hint:"انسخ الرمز إلى تطبيق Android. لا تشاركه خارج شبكتك المحلية، وسيظل محفوظًا على جهاز المعالجة.",copy_api_token:"نسخ الرمز",notify_title:"إعدادات التنبيهات",notify_hint:"التغييرات تُحفظ على الجهاز وتُستخدم من الويب وتطبيق الموبايل. إيقاف التنبيه لا يوقف الاكتشاف أو تسجيل الحدث.",notif_fall:"اشتباه سقوط",notif_movement:"اكتشاف الحركة",notif_presence:"وجود شخص",notif_empty_room:"الغرفة أصبحت فارغة",notif_door:"شخص عند الباب",notif_offline:"انقطاع اتصال الجهاز",notif_csi:"انخفاض جودة إشارة CSI",notify_saved:"تم حفظ إعدادات التنبيه",notify_error:"تعذر حفظ الإعدادات",events_title:"سجل الأحداث الأخير",edition_factory:"نسخة المصنع",edition_user:"نسخة المستخدم",cal_user:"ابدأ معايرة الغرفة (10 دقائق)",cal_factory:"معايرة تجريبية (10 ثوانٍ)",monitor_t:"المراقبة المتكاملة · CSI",presence_t:"التواجد في الغرفة",motion_t:"الحركة",fall_t:"اكتشاف السقوط",cal_go:"عاير الغرفة وهي فاضية (10 ثواني)",cal_stop:"إلغاء المعايرة",fall_ack:"تأكيد مراجعة التنبيه وإخفاؤه",activity_t:"تصنيف النشاط المدرّب",safety_note:"تنبيه بحثي: النتائج تقديرية وليست نظام إنقاذ أو جهازًا طبيًا. راجع أي تنبيه بشريًا ولا تعتمد عليه وحده.",no_stream:"مفيش بث",fall_model_ready:"فئة اكتشاف السقوط موجودة في النموذج المدرّب",fall_model_need:"لا يوجد نموذج سقوط مدرّب؛ تنبيه السقوط القاعدي تجريبي",pres_unknown:"غير محدد",pres_yes:"فيه وجود محتمل",pres_no:"الغرفة فاضية غالبًا",pres_uncal:"غير معاير",pres_score:"مؤشر التغير",pres_cal_hint:"افرغ الغرفة ثم ابدأ المعايرة",moving:"فيه حركة",still:"ثابت حاليًا",motion_level:"شدة الحركة",motion_score:"مؤشر الحركة",fall_alert:"اشتباه سقوط — تحقّق الآن",fall_check:"فحص نمط حركة",fall_ready:"لا توجد إشارة حاليًا",impact:"شدة التغير",fall_model_p:"احتمال الموديل",cal_running:"جاري معايرة الغرفة:",heat_h:"خريطة CSI: الصفوف = الزمن، الأعمدة = الـ 64 subcarrier. التغيّر في الألوان = حركة.",
+ rec_t:"1) سجّل بياناتك",act:"النشاط",person:"معرّف الشخص",room:"المكان",secs:"مدة التسجيل (ثواني)",rec_go:"ابدأ التسجيل",rec_stop:"إلغاء",
+ rec_tip:"سجّل 10 مرات أو أكثر لكل فئة، عبر أشخاص وغرف مختلفة. اجمع السقوط بمحاكاة آمنة ومتحكم فيها فقط، ولا تنفّذ سقوطًا حقيقيًا.",
+ tr_t:"2) درّب الموديل",epochs:"عدد الحقب",tr_go:"ابدأ التدريب",tr_stop:"إيقاف",
+ takes:"المرات",secs_c:"ثواني",del:"مسح",
+ conn:"متصل",disc:"مفيش بث من اللوحة",fps:"إطار/ث",loss:"فقد",nomodel:"لسه مفيش موديل — سجّل بيانات وبعدين درّب.",uncertain:"مش متأكد",
+ st_countdown:"استعد… ",st_rec:"سجّل الحركة الآن: ",st_done:"✓ ",st_err:"✗ ",tdone:"خلص التدريب. دقة الاختبار",twarn:"الدقة دي على نفس المكان والشخص — جرّبه في أوضة تانية قبل ما تثق فيه.",
+ trun:"التدريب شغال…",
+ h:{empty_room:"الغرفة فاضية تمامًا",person_static:"شخص ثابت",movement:"شخص بيتحرك",fall_detection:"اشتباه سقوط"}},
+en:{sub:"CSI sensing · four classes: empty room, person static, movement, fall detection",door_t:"HC-SR04 door sensor",door_offline:"Sensor offline",door_present:"Person at the door",door_clear:"No person at the door",door_distance:"Distance",api_token_title:"Android connection token",enable_browser_notifications:"Enable browser notifications",api_token_hint:"Copy this token into the Android app. Keep it private and only use it on your trusted local network.",copy_api_token:"Copy token",notify_title:"Notification preferences",buzzer_title:"Allow door buzzer (after the door unit is connected)",notify_hint:"Changes are saved on the local device and shared by web and Android. Turning off a notification does not stop detection or event logging.",notif_fall:"Possible fall",notif_movement:"Movement detected",notif_presence:"Person present",notif_empty_room:"Room became empty",notif_door:"Person at the door",notif_offline:"Device disconnected",notif_csi:"Low CSI signal quality",notify_saved:"Notification settings saved",notify_error:"Could not save settings",events_title:"Recent events",edition_factory:"Factory Edition",edition_user:"User Edition",cal_user:"Calibrate room (10 minutes)",cal_factory:"Test calibration (10 seconds)",monitor_t:"Integrated CSI monitor",presence_t:"Room presence",motion_t:"Motion",fall_t:"Fall detection",cal_go:"Calibrate empty room (10 seconds)",cal_stop:"Cancel calibration",fall_ack:"Acknowledge and hide alert",activity_t:"Trained activity classifier",safety_note:"Research prototype only. Results are estimates, not a medical or emergency safety system. Verify every alert in person.",no_stream:"No stream",fall_model_ready:"The trained model includes the fall-detection class",fall_model_need:"No trained fall-detection class; heuristic alerts are experimental",pres_unknown:"Unknown",pres_yes:"Possible presence",pres_no:"Likely empty",pres_uncal:"Not calibrated",pres_score:"Change score",pres_cal_hint:"Empty the room, then start calibration",moving:"Motion detected",still:"Currently still",motion_level:"Motion level",motion_score:"Motion score",fall_alert:"Possible fall — check now",fall_check:"Checking movement pattern",fall_ready:"No current indication",impact:"Change peak",fall_model_p:"Model probability",cal_running:"Calibrating room:",heat_h:"CSI heat-map: rows = time, columns = the 64 subcarriers. Colour changes = movement.",
+ rec_t:"1) Record your data",act:"Activity",person:"Person ID",room:"Place",secs:"Duration (s)",rec_go:"Start recording",rec_stop:"Cancel",
+ rec_tip:"Record 10 or more takes per class across people and rooms. Fall-detection samples must be safe, controlled simulations, never real falls.",
+ tr_t:"2) Train the model",epochs:"Epochs",tr_go:"Start training",tr_stop:"Stop",
+ takes:"Takes",secs_c:"Seconds",del:"Delete",
+ conn:"connected",disc:"no stream from the board",fps:"fps",loss:"loss",nomodel:"No model yet — record data, then train.",uncertain:"uncertain",
+ st_countdown:"Get ready… ",st_rec:"Do the activity now: ",st_done:"✓ ",st_err:"✗ ",tdone:"Training finished. Test accuracy",twarn:"This score is for the same place and person — test in another room before trusting it.",
+ trun:"Training…",
+ h:{empty_room:"Empty room",person_static:"Person static",movement:"Person moving",fall_detection:"Fall detection"}}};
+let lang=localStorage.getItem('lang')||'ar';
+const $=id=>document.getElementById(id), t=k=>D[lang][k]||k;
+const DEF=['empty_room','person_static','movement','fall_detection'];
+let apiToken='';
+const api=(p,b)=>fetch(p,b===undefined?{}:{method:'POST',headers:{'Authorization':'Bearer '+apiToken,'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json());
+function ap(){document.documentElement.lang=lang;document.documentElement.dir=lang=='ar'?'rtl':'ltr';
+ document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));$('lg').textContent=lang=='ar'?'EN':'عربي';hint()}
+$('lg').onclick=()=>{lang=lang=='ar'?'en':'ar';localStorage.setItem('lang',lang);ap();draw(S)};
+let S=null,labFilled=false;
+function hint(){$('labhint').textContent=t('h')[$('lab').value]||''}
+$('lab').onchange=hint;
+
+function drawHeat(heat){
+ const c=$('heat'),W=c.width=c.clientWidth*2,H=c.height=280,x=c.getContext('2d');x.clearRect(0,0,W,H);
+ if(!heat||heat.length<2)return;const n=heat.length,m=64,cw=W/m,rh=H/n;
+ const mean=Array(m).fill(0);heat.forEach(r=>r.forEach((v,j)=>mean[j]+=v/n));
+ heat.forEach((r,i)=>r.forEach((v,j)=>{const d=Math.max(-1,Math.min(1,(v-mean[j])/12));
+  x.fillStyle=d>0?`rgb(${60+195*d},${40+40*(1-d)},${60})`:`rgb(${50},${70+60*(-d)},${90+165*(-d)})`;
+  x.fillRect(j*cw,i*rh,cw+1,rh+1)}));
+}
+function drawEn(e){
+ const c=$('en'),W=c.width=c.clientWidth*2,H=c.height=120,x=c.getContext('2d');x.clearRect(0,0,W,H);
+ if(!e||e.length<2)return;const mx=Math.max(1,...e)*1.15;
+ x.strokeStyle='#19c37d';x.lineWidth=3;x.beginPath();e.forEach((v,i)=>{const px=i/(e.length-1)*W,py=H-v/mx*(H-8)-4;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();
+}
+function draw(s){
+ if(!s)return;
+ document.querySelectorAll("[data-factory-only]").forEach(e=>e.style.display=s.edition==="factory"?"":"none");
+ const m=s.monitor||{},f=s.fall||{},c=s.calibration||{};
+ $("calgo").textContent=s.edition==="user"?t("cal_user"):t("cal_factory");
+ const editionLabel=s.edition==="user"?t("edition_user"):t("edition_factory");
+ const editionNode=document.querySelector("[data-i=edition_label]");if(editionNode)editionNode.textContent=editionLabel;
+ syncNotifications(s.notifications||{});
+
+ renderEvents(s.events||[]);
+ const pLabels={unknown:t('pres_unknown'),present:t('pres_yes'),empty:t('pres_no')};
+ $('presenceValue').textContent=!s.connected?t('no_stream'):(m.calibrated?(pLabels[m.status]||pLabels.unknown):t('pres_uncal'));
+ $('presenceInfo').textContent=!s.connected?'':(m.calibrated?`${t('pres_score')}: ${m.score} · ${m.calibrated_at}`:t('pres_cal_hint'));
+ $('presenceTile').className='tile '+(m.status==='present'?'good':'');
+ $('motionValue').textContent=!s.connected?t('no_stream'):m.motion==='moving'?t('moving'):m.motion==='still'?t('still'):'—';
+ $('motionInfo').textContent=s.connected?`${t('motion_level')}: ${m.motion_level??0} · ${t('motion_score')}: ${m.motion_score??0}`:'';
+ $('motionTile').className='tile '+(m.motion==='moving'?'good':'');
+ const fallText=f.status==='alert'?t('fall_alert'):!s.connected?t('no_stream'):f.status==='checking'?t('fall_check'):t('fall_ready');
+ $('fallValue').textContent=fallText;
+ $('fallInfo').textContent=f.event?`${f.event.time} · ${f.event.message}`:s.connected?`${s.model_has_fall?t('fall_model_ready'):t('fall_model_need')} · ${t('impact')}: ${f.impact??0}`:'';
+ $('fallTile').className='tile '+(f.status==='alert'?'alert':'');
+ $('fallack').style.display=f.status==='alert'?'':'none';
+ $('calgo').disabled=!s.connected||c.status==='running';
+ $('calstop').disabled=c.status!=='running';
+ $('calmsg').textContent=c.status==='running'?`${t('cal_running')} ${c.left}s`:c.message||'';
+ $('chips').innerHTML=`<span class="chip ${s.connected?'ok':'bad'}">${s.connected?t('conn'):t('disc')}</span>`+
+  (s.connected?`<span class="chip">${s.fps} ${t('fps')}</span><span class="chip ${s.loss>10?'warn':''}">${t('loss')} ${s.loss}%</span><span class="chip">RSSI ${s.rssi}</span>`:'')+
+  (s.error?`<span class="chip bad">${s.error}</span>`:'');
+ const big=$('big'),bars=$('bars');
+ if(s.pred&&s.connected){
+  const u=s.pred.label=='uncertain';big.textContent=u?'❓ '+t('uncertain')+' ('+s.pred.best+')':s.pred.label;big.className=u?'u':'';
+  bars.innerHTML=Object.entries(s.pred.probs).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar"><span>${k}</span><div><i style="width:${(v*100).toFixed(0)}%"></i></div><span>${(v*100).toFixed(0)}%</span></div>`).join('');
+ }else{big.textContent='…';big.className='u';bars.innerHTML=''}
+ $('modelmsg').textContent=s.model.loaded?'':(s.model.error||t('nomodel'));
+  const door=s.door||{};
+  $('doorValue').textContent=!door.connected?t('door_offline'):(door.present?t('door_present'):t('door_clear'));
+  $('doorInfo').textContent=door.connected&&door.distance_cm?(t('door_distance')+': '+door.distance_cm+' cm'):(door.error||'');
+  $('doorTile').className='tile '+(door.connected&&door.present?'good':'');
+  drawHeat(s.heat);drawEn(s.energy);
+
+ const r=s.rec,busy=r.status=='countdown'||r.status=='recording';
+ $('rgo').disabled=busy;$('rstop').disabled=!busy;
+ $('rbig').textContent=r.status=='countdown'?r.left:(r.status=='recording'?r.left+'s':'');
+ $('rmsg').textContent=r.status=='countdown'?t('st_countdown')+r.label:r.status=='recording'?t('st_rec')+r.label+' ('+r.frames+')':r.status=='done'?t('st_done')+r.msg:r.status=='error'?t('st_err')+r.msg:(r.msg||'');
+
+ const names=[...new Set([...DEF,...Object.keys(s.takes)])];
+ if(!labFilled||$('lab').options.length!=names.length){const cur=$('lab').value;$('lab').innerHTML=names.map(n=>`<option>${n}</option>`).join('');if(cur)$('lab').value=cur;labFilled=true;hint()}
+ $('takes').innerHTML='<tr><th></th><th>'+t('takes')+'</th><th>'+t('secs_c')+'</th><th></th></tr>'+Object.entries(s.takes).map(([k,v])=>`<tr><td>${k}</td><td>${v.takes}</td><td>${v.seconds}</td><td><button class="d" onclick="delLab('${k}')">${t('del')}</button></td></tr>`).join('');
+
+ const tr=s.train,run=tr.status=='running';
+ $('tgo').disabled=run;$('tstop').disabled=!run;
+ $('tpr').style.display=run?'':'none';$('tpr').value=tr.epochs?tr.epoch/tr.epochs*100:0;
+ $('tlog').style.display=tr.log.length?'':'none';$('tlog').textContent=tr.log.join('\n');$('tlog').scrollTop=1e6;
+ $('tres').textContent=run?t('trun'):(tr.status=='done'&&tr.metrics?t('tdone')+': '+(tr.metrics.accuracy*100).toFixed(1)+'%  —  '+t('twarn'):'');
+
+}
+function syncNotifications(values){Object.entries(values).forEach(([key,value])=>{const input=$("notif_"+key);if(input && document.activeElement!==input)input.checked=!!value})}
+let eventsInitialized=false;
+const seenEventIds=new Set();
+const eventPreference={fall:"fall",movement:"movement",presence:"presence",empty_room:"empty_room",device_offline:"device_offline",csi_quality:"csi_quality",door_presence:"door_presence"};
+let eventToastTimer=null;
+function showEventToast(message){const box=$("eventToast");box.textContent=message;box.classList.add("show");clearTimeout(eventToastTimer);eventToastTimer=setTimeout(()=>box.classList.remove("show"),5000)}
+function renderEvents(events){
+ const box=$("eventList");if(!box)return;box.innerHTML="";
+ const rows=[...events].slice(-8).reverse();
+ if(!rows.length){box.textContent="—";return}
+ rows.forEach(ev=>{const row=document.createElement("div");row.className="event-row";const msg=document.createElement("span");msg.textContent=ev.message||ev.type||"Event";const time=document.createElement("span");time.className="event-time";time.textContent=ev.time||"";row.append(msg,time);box.appendChild(row)});
+ if(!eventsInitialized){events.forEach(ev=>seenEventIds.add(String(ev.id)));eventsInitialized=true;return}
+ events.forEach(ev=>{
+  const id=String(ev.id);if(seenEventIds.has(id))return;seenEventIds.add(id);
+  const key=eventPreference[ev.type];if(!key||!S?.notifications?.[key])return;
+  const message=(ev.message||ev.type)+" · "+(ev.time||"");
+  showEventToast(message);
+  if("Notification" in window && Notification.permission==="granted"){
+   try{new Notification("WiFi Radar",{body:message,tag:"wifi-radar-"+key})}catch(e){}
+  }
+ });
+}
+$("enableBrowserNotifications").onclick=async()=>{
+ if(!("Notification" in window)){$("notifyStatus").textContent="المتصفح لا يدعم إشعارات النظام";return}
+ try{const permission=await Notification.requestPermission();$("notifyStatus").textContent=permission==="granted"?"تم تفعيل إشعارات المتصفح":"لم يتم السماح بإشعارات المتصفح"}
+ catch(e){$("notifyStatus").textContent="تعذر طلب إذن الإشعارات"}
+};
+async function saveNotification(key,value){try{const r=await api("/api/config",{notifications:{[key]:value}});if(!r.ok)throw new Error(r.error||"save failed");$("notifyStatus").textContent=t("notify_saved")}catch(e){$("notifyStatus").textContent=t("notify_error")}}
+["fall","movement","presence","empty_room","door_presence","device_offline","csi_quality"].forEach(key=>{const input=$("notif_"+key);input.addEventListener("change",()=>saveNotification(key,input.checked))});
+async function delLab(k){if(confirm(k+' ?'))await api('/api/label/delete',{label:k})}
+$('rgo').onclick=async()=>{const label=$('lab').value;
+ const r=await api('/api/record',{label,person:$('person').value,room:$('room').value,seconds:+$('secs').value});if(!r.ok)alert(r.error)};
+$('rstop').onclick=()=>api('/api/record/stop',{});
+$('tgo').onclick=async()=>{const r=await api('/api/train',{epochs:+$('ep').value});if(!r.ok)alert(r.error)};
+$('tstop').onclick=()=>api('/api/train/stop',{});
+$('calgo').onclick=async()=>{const r=await api('/api/calibrate',{seconds:10});if(!r.ok)alert(r.error)};
+$('calstop').onclick=()=>api('/api/calibrate/stop',{});
+$('fallack').onclick=()=>api('/api/fall/ack',{});
+async function loadApiToken(){try{const response=await fetch('/api/token');if(!response.ok)throw new Error('local token endpoint unavailable');const payload=await response.json();apiToken=payload.token||'';$('apiToken').value=apiToken}catch(e){$('apiToken').value='افتح لوحة الويب من نفس جهاز المعالجة لعرض الرمز'}}
+$('copyApiToken').onclick=()=>{const input=$('apiToken');input.focus();input.select();try{document.execCommand('copy');$('notifyStatus').textContent='تم نسخ الرمز'}catch(e){$('notifyStatus').textContent='حدد الرمز وانسخه يدويًا'}};
+async function poll(){try{S=await api('/api/state');draw(S)}catch(e){}setTimeout(poll,1000)}
+ap();loadApiToken();poll();
+</script>
+</body>
+</html>
