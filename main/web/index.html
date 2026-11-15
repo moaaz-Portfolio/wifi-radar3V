@@ -100,8 +100,9 @@ progress{width:100%;height:10px;margin-top:10px}
   <div class="sep"></div>
   <h3 data-i="cal"></h3>
   <p class="hint" data-i="cal_h"></p>
-  <div class="g"><div><label data-i="cal_d"></label><input type="number" id="cal_dur" value="20" min="5" max="120"></div></div>
+  <div><label data-i="room_name"></label><input id="room_name" maxlength="47" data-k="room_name" data-t="s" placeholder="مثلاً غرفة المعيشة"></div><p class="hint" data-i="cal_10"></p><p class="hint" data-i="door_place"></p>
   <button class="s" id="cal_go" data-i="cal_go"></button>
+  <button class="s" id="cal_stop" data-i="cal_stop"></button>
   <button class="s" id="cal_clr" data-i="cal_clr"></button>
   <button class="s" id="cal_base" data-i="cal_base"></button>
   <progress id="cal_pr" value="0" max="100" style="display:none"></progress>
@@ -134,6 +135,7 @@ progress{width:100%;height:10px;margin-top:10px}
     <div class="chk"><input type="checkbox" id="buzzer_enabled" data-k="buzzer_enabled" data-t="b"><label for="buzzer_enabled" data-i="buzzer_enable"></label></div>
    </div>
    <p class="hint" data-i="door_hw"></p>
+   <button class="s" id="door_learn" data-i="door_learn"></button>
   <button class="p" data-save="p_out" data-i="save"></button>
  </div>
 
@@ -207,11 +209,11 @@ ar:{title:"رادار الواي فاي",t_det:"الكشف",t_out:"المخرج�
  moving:"في حركة!",still:"مفيش حركة",pres_y:"في حد موجود",pres_n:"مفيش تواجد",warming:"بيسخّن… استنى شوية",offline:"مفيش اتصال بالجهاز",door_present:"شخص عند الباب",door_clear:"لا يوجد شخص عند الباب",door_disabled:"حساس الباب متوقف",door_distance:"المسافة",buzzer_active:"الجرس يعمل",
  sens:"الحساسية",low:"منخفضة",med:"متوسطة",high:"عالية",motion_s:"حساسية الحركة",pres_s:"حساسية التواجد",hold:"إبقاء الحالة (ثواني)",source:"مصدر الإشارة",
  src0:"الراوتر",src1:"لوحة مساعدة (Pair)",src2:"أي واحد فيهم",adv:"إعدادات متقدمة",ping:"سرعة الإرسال (Hz)",save:"حفظ",saved:"اتحفظ ✓",
- cal:"المعايرة",cal_h:"اخرج من الأوضة (أو اقعد ثابت خالص) وقت المعايرة عشان الجهاز يتعلم الأوضة وهي هادية.",cal_d:"مدة المعايرة (ثواني)",cal_go:"ابدأ المعايرة",cal_clr:"امسح المعايرة",cal_base:"صفّر الخط المرجعي",
- cal_run:"المعايرة شغالة… متتحركش",cal_done:"المعايرة تمت ✓",
+ cal:"معايرة الغرفة",cal_h:"افرغ الغرفة وثبّت مكان الجهاز والراوتر قبل البدء.",cal_10:"المعايرة تستغرق 10 دقائق كاملة، وتتوقف تلقائيًا عند الانتهاء.",room_name:"اسم الغرفة",door_place:"ضع الجهاز بجوار الباب ووجّه حساس HC-SR04 عبر مسار المرور نحو سطح ثابت مقابل له. اترك الباب والمسار خاليين أثناء تعلم المسافة المرجعية.",cal_go:"ابدأ معايرة 10 دقائق",cal_stop:"إيقاف المعايرة",cal_clr:"امسح المعايرة",cal_base:"صفّر خط CSI المرجعي",door_learn:"إعادة تعلم مسافة الباب",
+ cal_run:"المعايرة شغالة… سيب الغرفة فاضية",cal_done:"المعايرة تمت ✓",room_required:"اكتب اسم الغرفة أولًا",cal_stopped:"تم إيقاف المعايرة",door_learning:"اتمسح خط الباب المرجعي؛ سيب الباب فاضي لحد ما يتعلم المسافة",
  led:"لمبة الحالة",led_t:"النوع",none:"مفيش",led_c:"لون الحركة",led_b:"السطوع %",led_h:"لوحة DevKitC-1 فيها لمبة RGB على GPIO 48 (أو 38 في بعض النسخ). الأزرق الوامض = بيتصل، البرتقالي = وضع الإعداد.",
  relay:"مخرج خارجي (ريلاي / بازر)",out_hold:"يفضل شغال بعد الحركة (ثواني)",out_hi:"يشتغل عند HIGH",relay_h:"مخرج الريلاي العام. جرس HC-SR04 له دائرة قيادة منفصلة على GPIO 6.",
-  door_cfg:"حساس الباب والجرس",door_enable:"تفعيل HC-SR04 (GPIO 4 و5)",door_range:"مسافة اكتشاف الوجود (cm)",buzzer_enable:"تفعيل الجرس عند رصد شخص",door_hw:"الحساس يعمل على 5V: خرج Echo يمر عبر مقسم جهد قبل GPIO 5. الجرس 5V يحتاج ترانزستور قيادة على GPIO 6؛ لا توصله مباشرة باللوحة.",
+  door_cfg:"حساس الباب والجرس",door_enable:"تفعيل HC-SR04 (GPIO 4 و5)",door_range:"عتبة المسافة القديمة (cm)",door_crossing:"احتمال عبور عند الباب",door_fault:"قراءات الحساس منقطعة",door_baseline:"المسافة المرجعية",buzzer_enable:"تفعيل الجرس عند رصد شخص",door_hw:"الحساس يعمل على 5V: خرج Echo يمر عبر مقسم جهد قبل GPIO 5. الجرس 5V يحتاج ترانزستور قيادة على GPIO 6؛ لا توصله مباشرة باللوحة. تعلّم المسافة يحتاج سطحًا ثابتًا يعكس الموجات بالمقابل.",
  mode:"وضع الجهاز",role:"الدور",role0:"حساس (يكشف الحركة)",role1:"مُرسل (لوحة مساعدة)",role2:"بث CSI للكمبيوتر (تعرف نشاط)",role3:"ذكاء اصطناعي على البورد (بدون كمبيوتر)",ai_empty:"الغرفة فارغة",ai_static:"شخص ثابت",ai_move:"حركة",ai_fall:"اشتباه سقوط",ai_unc:"غير متأكد",ai_warm:"جاري التحليل…",ai_nomodel:"الموديل غير موجود على البورد",sh:"عنوان الكمبيوتر (فاضي = تلقائي)",stream_msg:"بيبعت CSI للكمبيوتر",host:"اسم الجهاز",pair:"MAC اللوحة المساعدة",
  pair_h:"لو عندك لوحة S3 تانية: خليها «مُرسل» وحط الـ MAC بتاعها هنا، وبعدها اختار مصدر الإشارة. دقة أعلى ومش بتعتمد على الراوتر. (بيحتاج إعادة تشغيل)",my_mac:"الـ MAC بتاع اللوحة دي",
  pw_t:"حماية لوحة التحكم",pw:"كلمة سر جديدة (المستخدم: admin)",pw_clr:"شيل كلمة السر",
@@ -227,11 +229,11 @@ en:{title:"WiFi Radar",t_det:"Detection",t_out:"Outputs",t_net:"Network & mode",
  moving:"MOTION!",still:"NO MOTION",pres_y:"Someone present",pres_n:"No presence",warming:"Warming up…",offline:"Device unreachable",door_present:"Person at the door",door_clear:"No person at the door",door_disabled:"Door sensor disabled",door_distance:"Distance",buzzer_active:"Buzzer active",
  sens:"Sensitivity",low:"Low",med:"Medium",high:"High",motion_s:"Motion sensitivity",pres_s:"Presence sensitivity",hold:"Hold state (s)",source:"Signal source",
  src0:"Router",src1:"Paired helper board",src2:"Either",adv:"Advanced",ping:"Send rate (Hz)",save:"Save",saved:"Saved ✓",
- cal:"Calibration",cal_h:"Leave the room (or stay perfectly still) so the device can learn the empty room.",cal_d:"Duration (s)",cal_go:"Start calibration",cal_clr:"Clear calibration",cal_base:"Reset baseline",
- cal_run:"Calibrating… stay out of the way",cal_done:"Calibration done ✓",
+ cal:"Room calibration",cal_h:"Empty the room and keep the device and router fixed before starting.",cal_10:"Calibration takes a full 10 minutes and stops automatically.",room_name:"Room name",door_place:"Mount the device beside the door. Aim the HC-SR04 across the walking path at a fixed reflective surface. Keep the doorway and path clear while it learns the reference distance.",cal_go:"Start 10-minute calibration",cal_stop:"Stop calibration",cal_clr:"Clear calibration",cal_base:"Reset CSI baseline",door_learn:"Relearn door distance",
+ cal_run:"Calibrating… keep the room empty",cal_done:"Calibration done ✓",room_required:"Enter a room name first",cal_stopped:"Calibration stopped",door_learning:"Door baseline cleared; keep the path empty while it relearns",
  led:"Status LED",led_t:"Type",none:"None",led_c:"Motion colour",led_b:"Brightness %",led_h:"DevKitC-1 has an RGB LED on GPIO 48 (38 on some revisions). Blinking blue = connecting, orange = setup mode.",
  relay:"External output (relay / buzzer)",out_hold:"Stay on after motion (s)",out_hi:"Active HIGH",relay_h:"General relay output. The HC-SR04 buzzer has a separate transistor driver on GPIO 6.",
-  door_cfg:"Door sensor and buzzer",door_enable:"Enable HC-SR04 (GPIO 4 and 5)",door_range:"Presence detection distance (cm)",buzzer_enable:"Enable buzzer when a person is detected",door_hw:"The sensor uses 5V: route Echo through a voltage divider before GPIO 5. A 5V buzzer requires a transistor driver on GPIO 6; never connect it directly to the ESP32 pin.",
+  door_cfg:"Door sensor and buzzer",door_enable:"Enable HC-SR04 (GPIO 4 and 5)",door_range:"Presence detection distance (cm)",buzzer_enable:"Enable buzzer when a person is detected",door_hw:"The sensor uses 5V: route Echo through a voltage divider before GPIO 5. A 5V buzzer requires a transistor driver on GPIO 6; never connect it directly to the ESP32 pin. Distance learning needs a fixed reflective surface opposite the sensor.",
  mode:"Device mode",role:"Role",role0:"Sensor (detects motion)",role1:"Sender (helper board)",role2:"CSI stream to PC (activity AI)",role3:"On-board AI (no computer)",ai_empty:"Empty room",ai_static:"Person static",ai_move:"Movement",ai_fall:"Possible fall",ai_unc:"Uncertain",ai_warm:"Analysing…",ai_nomodel:"Model missing on the board",sh:"PC address (empty = auto)",stream_msg:"Streaming CSI to the PC",host:"Device name",pair:"Helper board MAC",
  pair_h:"With a second S3: set it to “Sender”, paste its MAC here, then pick the signal source. Better accuracy, independent of the router. (needs reboot)",my_mac:"This board's MAC",
  pw_t:"Dashboard password",pw:"New password (user: admin)",pw_clr:"Remove password",
@@ -274,8 +276,16 @@ function render(s){
  $('m_rssi').textContent=s.rssi!=null?s.rssi+' dBm':'';
  $('m_jit').textContent=ai?aiMeta(s.ai):stream?(t('stream_msg')+' · '+(s.csi_sent||0)):sender?t('sender_msg'):'jitter '+(s.jitter||0).toFixed(3);
  $('m_up').textContent=t('up')+' '+fmtUp(s.uptime||0);
-  $('m_door').textContent=!s.door_enabled?t('door_disabled'):(s.door_present?t('door_present'):t('door_clear'))+
+  $('cal_pr').style.display=s.train_running?'':'none';
+ $('cal_pr').value=Math.min(100,(s.train_elapsed_s||0)/600*100);
+ $('cal_go').disabled=!s.running||!!s.train_running;
+ $('cal_stop').disabled=!s.train_running;
+ $('cal_msg').textContent=s.train_running?(t('cal_run')+' · '+Math.floor((s.train_remaining_s||0)/60)+'m '+((s.train_remaining_s||0)%60)+'s'):(s.train_complete?t('cal_done'):'');
+ $('m_door').textContent=!s.door_enabled?t('door_disabled'):(s.door_present?t('door_present'):t('door_clear'))+
     (s.door_valid?' · '+t('door_distance')+' '+s.door_distance_cm+' cm':'')+
+    (s.door_baseline_valid?' · '+t('door_baseline')+' '+s.door_baseline_cm+' cm':'')+
+    (s.door_crossing?' · '+t('door_crossing'):'')+
+    (s.door_sensor_fault?' · '+t('door_fault'):'')+
     (s.buzzer_active?' · '+t('buzzer_active'):'');
   $('my_mac').textContent=s.mac||'';
  $('kv').innerHTML=[['k_fw',s.fw],['k_ip',s.ip],['k_mac',s.mac],['k_ssid',s.ssid||'-'],['k_heap',Math.round((s.heap||0)/1024)+' KB']]
@@ -316,21 +326,18 @@ document.querySelectorAll('[data-save]').forEach(b=>b.onclick=async()=>{
   if(r.reboot_needed&&confirm(t('rbn')))reboot();
   loadCfg()}catch(e){toast(t('err'))}});
 
-let calT=null;
 $('cal_go').onclick=async()=>{
- const dur=Math.max(5,parseInt($('cal_dur').value,10)||20);
- try{await api('/api/calibrate',{method:'POST',body:JSON.stringify({action:'start'})})}catch(e){toast(t('err'));return}
- const pr=$('cal_pr');pr.style.display='';pr.value=0;$('cal_msg').textContent=t('cal_run');
- const t0=Date.now();clearInterval(calT);
- calT=setInterval(async()=>{
-  const p=(Date.now()-t0)/(dur*1000)*100;pr.value=Math.min(100,p);
-  if(p>=100){clearInterval(calT);
-   try{const r=await api('/api/calibrate',{method:'POST',body:JSON.stringify({action:'stop'})});
-    $('cal_msg').textContent=t('cal_done')+(r.jitter!=null?'  (jitter '+r.jitter.toFixed(3)+')':'')}
-   catch(e){$('cal_msg').textContent=t('err')}
-   pr.style.display='none'}},200)};
+ const room=$('room_name').value.trim();
+ if(!room){$('cal_msg').textContent=t('room_required');$('room_name').focus();return}
+ try{const r=await api('/api/calibrate',{method:'POST',body:JSON.stringify({action:'start',room_name:room})});
+  if(!r.ok)throw new Error(r.error||'calibration failed');
+  $('cal_msg').textContent=t('cal_run');
+ }catch(e){$('cal_msg').textContent=e.message||t('err')}
+};
+$('cal_stop').onclick=()=>api('/api/calibrate',{method:'POST',body:JSON.stringify({action:'stop'})}).then(r=>{if(!r.ok)throw 0;toast(t('cal_stopped'))}).catch(()=>toast(t('err')));
 $('cal_clr').onclick=()=>api('/api/calibrate',{method:'POST',body:JSON.stringify({action:'clear'})}).then(()=>toast(t('saved'))).catch(()=>toast(t('err')));
 $('cal_base').onclick=()=>api('/api/calibrate',{method:'POST',body:JSON.stringify({action:'baseline'})}).then(()=>toast(t('saved'))).catch(()=>toast(t('err')));
+$('door_learn').onclick=()=>api('/api/calibrate',{method:'POST',body:JSON.stringify({action:'door-baseline'})}).then(r=>{if(!r.ok)throw 0;toast(t('door_learning'))}).catch(()=>toast(t('err')));
 
 async function scan(){try{const l=await api('/api/scan?refresh=1');const s=$('wl');s.innerHTML='<option value=""></option>';
  l.sort((a,b)=>b.rssi-a.rssi).forEach(n=>{const o=document.createElement('option');o.value=n.ssid;o.textContent=(n.open?'🔓 ':'🔒 ')+n.ssid+' ('+n.rssi+')';s.appendChild(o)})}catch(e){toast(t('err'))}}

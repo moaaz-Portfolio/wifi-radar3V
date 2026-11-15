@@ -21,7 +21,7 @@ typedef struct { notify_type_t type; bool value; } evt_t;
 static QueueHandle_t s_q;
 static esp_mqtt_client_handle_t s_mqtt;
 static volatile bool s_mq_up = false;
-static bool s_motion = false, s_presence = false;
+static bool s_motion = false, s_presence = false, s_door_crossing = false, s_door_fault = false;
 static char s_base[96], s_avail[112];
 
 bool notify_mqtt_connected(void) { return s_mq_up; }
@@ -71,6 +71,8 @@ static void mq_publish_states(void)
 {
     mq_pub("motion", s_motion ? "ON" : "OFF", true);
     mq_pub("presence", s_presence ? "ON" : "OFF", true);
+    mq_pub("door_crossing", s_door_crossing ? "ON" : "OFF", true);
+    mq_pub("door_sensor_fault", s_door_fault ? "ON" : "OFF", true);
 }
 
 static void mq_event(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -82,6 +84,8 @@ static void mq_event(void *arg, esp_event_base_t base, int32_t id, void *data)
         if (settings_get()->mqtt_ha) {
             ha_discovery_one("motion", "Motion", "motion");
             ha_discovery_one("presence", "Presence", "occupancy");
+            ha_discovery_one("door_crossing", "Door crossing", "motion");
+            ha_discovery_one("door_sensor_fault", "Door sensor fault", "problem");
         }
         mq_publish_states();
     } else if (id == MQTT_EVENT_DISCONNECTED) {
@@ -162,7 +166,7 @@ static void worker(void *arg)
     evt_t e;
     for (;;) {
         if (xQueueReceive(s_q, &e, portMAX_DELAY) != pdTRUE) continue;
-        const char *name = (e.type == NOTIFY_MOTION) ? "motion" : "presence";
+        const char *name = e.type == NOTIFY_MOTION ? "motion" : e.type == NOTIFY_PRESENCE ? "presence" : e.type == NOTIFY_DOOR_CROSSING ? "door_crossing" : "door_sensor_fault";
         mq_pub(name, e.value ? "ON" : "OFF", true);
         webhook_send(name, e.value);
     }
@@ -170,7 +174,10 @@ static void worker(void *arg)
 
 void notify_post(notify_type_t type, bool value)
 {
-    if (type == NOTIFY_MOTION) s_motion = value; else s_presence = value;
+    if (type == NOTIFY_MOTION) s_motion = value;
+    else if (type == NOTIFY_PRESENCE) s_presence = value;
+    else if (type == NOTIFY_DOOR_CROSSING) s_door_crossing = value;
+    else if (type == NOTIFY_DOOR_SENSOR_FAULT) s_door_fault = value;
     if (!s_q) return;
     evt_t e = { type, value };
     xQueueSend(s_q, &e, 0);

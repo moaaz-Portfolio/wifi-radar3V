@@ -33,6 +33,8 @@ class MainActivity : Activity() {
         "presence" to "وجود شخص",
         "empty_room" to "الغرفة أصبحت فارغة",
         "door_presence" to "شخص عند الباب",
+        "door_crossing" to "عبور عند الباب",
+        "door_sensor_fault" to "عطل حساس الباب",
         "device_offline" to "انقطاع اتصال الجهاز",
         "csi_quality" to "انخفاض جودة إشارة CSI"
     )

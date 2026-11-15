@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 import secrets
 import threading
@@ -34,9 +35,10 @@ class State:
         self.model_error = ""
         self.pred = None
         self.energy_hist = deque(maxlen=120)
-        self.presence = PresenceMonitor(os.path.join(MODEL_DIR, "room_baseline.json"))
         self.settings_path = os.path.join(MODEL_DIR, "settings.json")
         self.settings = load_settings(self.settings_path)
+        self.room_name = self.settings.get("room_name", "غرفة")
+        self.presence = PresenceMonitor(self._room_profile_path("presence", self.room_name))
         self.events_path = os.path.join(MODEL_DIR, "events.jsonl")
         self.api_token = self._load_api_token()
         self.event_log = deque(maxlen=100)
@@ -46,6 +48,8 @@ class State:
         self._last_fall_signature = None
         self._last_csi_warning = False
         self._last_door_presence = False
+        self._last_door_crossing = False
+        self._last_door_fault = False
         self._load_event_log()
         self.fall_detector = FallEventDetector()
         self.calibration = {"status": "idle", "left": 0, "message": ""}
@@ -97,8 +101,15 @@ class State:
         except OSError:
             pass
 
+    def _room_profile_path(self, name, room_name=None):
+        room = (room_name or self.room_name).strip() or "غرفة"
+        room_id = hashlib.sha256(room.encode("utf-8")).hexdigest()[:16]
+        folder = os.path.join(MODEL_DIR, "rooms", room_id)
+        os.makedirs(folder, exist_ok=True)
+        return os.path.join(folder, name + ".json")
+
     def configuration(self):
-        return {"edition": self.edition,
+        return {"edition": self.edition, "room_name": self.room_name,
                 "notifications": dict(self.settings["notifications"]),
                 "outputs": dict(self.settings["outputs"])}
 
@@ -108,6 +119,14 @@ class State:
         for section in ("notifications", "outputs"):
             if section in payload:
                 update_preferences(self.settings, section, payload[section])
+        if "room_name" in payload:
+            if not isinstance(payload["room_name"], str) or not payload["room_name"].strip():
+                raise ValueError("room_name must not be empty")
+            self.room_name = payload["room_name"].strip()[:48]
+            self.settings["room_name"] = self.room_name
+            self.presence = PresenceMonitor(self._room_profile_path("presence", self.room_name))
+            if self.predictor:
+                self._restore_room_gain(self.predictor)
         save_settings(self.settings_path, self.settings)
         return self.configuration()
 
@@ -146,11 +165,9 @@ class State:
             except Exception as e:
                 self.model_error = f"could not load model: {e}"
 
-    ROOM_GAIN_PATH = os.path.join(MODEL_DIR, "room_adapter.json")
-
     def _restore_room_gain(self, predictor):
         try:
-            with open(self.ROOM_GAIN_PATH, "r", encoding="utf-8") as f:
+            with open(self._room_profile_path("room_adapter"), "r", encoding="utf-8") as f:
                 saved = json.load(f)
             if abs(float(saved.get("train_floor", -1)) - predictor.adapter.train_floor) < 1e-9:
                 predictor.set_gain(float(saved["gain"]))
@@ -162,11 +179,12 @@ class State:
             return None
         info = self.predictor.adapt_room(ts, amp)
         if info.get("adapted"):
-            tmp = self.ROOM_GAIN_PATH + ".tmp"
+            adapter_path = self._room_profile_path("room_adapter")
+            tmp = adapter_path + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump({"gain": info["gain"], "room_floor": info["room_floor"],
                            "train_floor": info["train_floor"], "version": self.predictor.version}, f)
-            os.replace(tmp, self.ROOM_GAIN_PATH)
+            os.replace(tmp, adapter_path)
         return info
 
     def loop(self):
@@ -179,6 +197,15 @@ class State:
                     self.log_event("door_presence", "تم رصد شخص عند الباب بواسطة HC-SR04",
                                    {"distance_cm": door.get("distance_cm")})
                 self._last_door_presence = current_door_presence
+            crossing = bool(door.get("crossing"))
+            if crossing and not self._last_door_crossing:
+                self.log_event("door_crossing", "تم رصد عبور عند الباب",
+                               {"distance_cm": door.get("distance_cm"), "baseline_cm": door.get("baseline_cm")})
+            self._last_door_crossing = crossing
+            sensor_fault = bool(door.get("sensor_fault"))
+            if sensor_fault and not self._last_door_fault:
+                self.log_event("door_sensor_fault", "تحقق من حساس الباب أو الأسلاك؛ لا تصل قراءة مسافة صحيحة")
+            self._last_door_fault = sensor_fault
             connected = self.rx.connected()
             if not connected:
                 if self._was_connected is not False:
@@ -212,19 +239,25 @@ class State:
             self._last_csi_warning = quality_warning
 
 
-    def start_calibration(self, seconds=None):
-        if seconds is None:
-            seconds = 600 if self.edition == USER else 10
-        if self.edition == USER:
-            seconds = 600
+    def start_calibration(self, room_name):
+        room = str(room_name or "").strip()[:48]
+        if not room:
+            return "اكتب اسم الغرفة قبل المعايرة"
         if not self.rx.connected():
             return "لا يوجد بث CSI من اللوحة"
         if self.calibration["status"] == "running":
             return "المعايرة شغالة بالفعل"
         if self.rec["status"] in ("countdown", "recording"):
             return "أوقف تسجيل النشاط قبل المعايرة"
+        self.room_name = room
+        self.settings["room_name"] = room
+        self.presence = PresenceMonitor(self._room_profile_path("presence", room))
+        if self.predictor:
+            self._restore_room_gain(self.predictor)
+        save_settings(self.settings_path, self.settings)
+        seconds = 600
         self._calibration_stop.clear()
-        self.calibration.update(status="running", left=seconds,
+        self.calibration.update(status="running", left=seconds, room_name=room,
                                 message="اترك الغرفة فارغة وثبّت الراوتر واللوحة")
         threading.Thread(target=self._calibrate, args=(seconds,), daemon=True).start()
         return ""
@@ -248,15 +281,14 @@ class State:
             if result_data is None:
                 raise ValueError("لم تصل بيانات CSI أثناء المعايرة")
             ts, _rssi, amp = result_data
-            if self.edition == USER:
-                minimum_frames = int(seconds * 15)
-                if len(ts) < minimum_frames:
-                    raise ValueError(
-                        f"بيانات CSI غير كافية: وصل {len(ts)} إطارًا، والمطلوب {minimum_frames} على الأقل. "
-                        "تحقق من قرب اللوحة وجودة الاتصال ثم أعد المعايرة."
-                    )
-                if len(ts) > 1 and (float(ts[-1]) - float(ts[0])) < seconds * 900:
-                    raise ValueError("جلسة المعايرة لم تغطِّ المدة المطلوبة؛ أعد المحاولة مع بث مستمر.")
+            minimum_frames = int(seconds * 15)
+            if len(ts) < minimum_frames:
+                raise ValueError(
+                    f"بيانات CSI غير كافية: وصل {len(ts)} إطارًا، والمطلوب {minimum_frames} على الأقل. "
+                    "تحقق من قرب اللوحة وجودة الاتصال ثم أعد المعايرة."
+                )
+            if len(ts) > 1 and (float(ts[-1]) - float(ts[0])) < seconds * 900:
+                raise ValueError("جلسة المعايرة لم تغطِّ المدة المطلوبة؛ أعد المحاولة مع بث مستمر.")
             result = self.presence.calibrate(ts, amp)
             try:
                 self._adapt_model_to_room(ts, amp)
@@ -366,6 +398,7 @@ class State:
             "pred": self.pred,
             "door": self.door_rx.snapshot(),
             "monitor": self.presence.snapshot(),
+            "room_name": self.room_name,
             "fall": self.fall_detector.snapshot(),
             "calibration": dict(self.calibration),
             "model_has_fall": bool(self.predictor and any(
@@ -452,8 +485,7 @@ def make_handler(state):
             elif self.path == "/api/model/reload":
                 state.load_model()
             elif self.path == "/api/calibrate":
-                requested = None if state.edition == USER else max(8, min(600, int(body.get("seconds", 10))))
-                err = state.start_calibration(requested)
+                err = state.start_calibration(str(body.get("room_name", "")))
             elif self.path == "/api/calibrate/stop":
                 state._calibration_stop.set()
             elif self.path == "/api/fall/ack":

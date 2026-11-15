@@ -9,6 +9,7 @@ typedef struct {
     char wifi_ssid[33];
     char wifi_pass[65];
     char hostname[32];
+    char room_name[48];
 
     uint8_t role;
     char stream_host[40];
@@ -35,6 +36,8 @@ typedef struct {
     bool door_enabled;
     bool buzzer_enabled;
     uint16_t door_threshold_cm;
+    uint16_t door_baseline_cm;
+    bool door_baseline_valid;
 
     char lang[3];
     char ui_pass[33];

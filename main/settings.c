@@ -34,6 +34,7 @@ void settings_defaults(settings_t *o)
     uint8_t mac[6] = {0};
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
     snprintf(o->hostname, sizeof(o->hostname), "s3radar-%02x%02x%02x", mac[3], mac[4], mac[5]);
+    strlcpy(o->room_name, "غرفة", sizeof(o->room_name));
 
     esp_wifi_sensing_fsm_config_t c = DEFAULT_ESP_WIFI_SENSING_FSM_CONFIG();
     o->sensitivity = 0.75f;
@@ -73,6 +74,7 @@ cJSON *settings_to_json(const settings_t *c, bool secrets)
     cJSON *o = cJSON_CreateObject();
     cJSON_AddStringToObject(o, "wifi_ssid", c->wifi_ssid);
     cJSON_AddStringToObject(o, "hostname", c->hostname);
+    cJSON_AddStringToObject(o, "room_name", c->room_name);
     cJSON_AddNumberToObject(o, "role", c->role);
     cJSON_AddStringToObject(o, "stream_host", c->stream_host);
     cJSON_AddNumberToObject(o, "stream_port", c->stream_port);
@@ -94,6 +96,8 @@ cJSON *settings_to_json(const settings_t *c, bool secrets)
     cJSON_AddBoolToObject(o, "door_enabled", c->door_enabled);
     cJSON_AddBoolToObject(o, "buzzer_enabled", c->buzzer_enabled);
     cJSON_AddNumberToObject(o, "door_threshold_cm", c->door_threshold_cm);
+    cJSON_AddNumberToObject(o, "door_baseline_cm", c->door_baseline_cm);
+    cJSON_AddBoolToObject(o, "door_baseline_valid", c->door_baseline_valid);
     cJSON_AddStringToObject(o, "lang", c->lang);
     cJSON_AddBoolToObject(o, "mqtt_en", c->mqtt_en);
     cJSON_AddStringToObject(o, "mqtt_host", c->mqtt_host);
@@ -170,6 +174,17 @@ void settings_apply_json(settings_t *c, const cJSON *j, bool trusted)
     }
 
     if (get_str(j, "hostname", c->hostname, sizeof(c->hostname))) sanitize_host(c->hostname);
+    if (get_str(j, "room_name", tmp, sizeof(tmp))) {
+        size_t start = 0, end = strlen(tmp);
+        while (start < end && (unsigned char)tmp[start] <= 0x20) start++;
+        while (end > start && (unsigned char)tmp[end - 1] <= 0x20) end--;
+        if (end > start) {
+            size_t n = end - start;
+            if (n >= sizeof(c->room_name)) n = sizeof(c->room_name) - 1;
+            memcpy(c->room_name, tmp + start, n);
+            c->room_name[n] = 0;
+        }
+    }
 
     c->role = (uint8_t)clampi(item(j, "role"), 0, 3, c->role);
     if (get_str(j, "stream_host", tmp, sizeof(c->stream_host))) {
@@ -204,6 +219,9 @@ void settings_apply_json(settings_t *c, const cJSON *j, bool trusted)
     c->door_enabled = getb(item(j, "door_enabled"), c->door_enabled);
     c->buzzer_enabled = getb(item(j, "buzzer_enabled"), c->buzzer_enabled);
     c->door_threshold_cm = (uint16_t)clampi(item(j, "door_threshold_cm"), 20, 300, c->door_threshold_cm);
+    c->door_baseline_cm = (uint16_t)clampi(item(j, "door_baseline_cm"), 0, 400, c->door_baseline_cm);
+    c->door_baseline_valid = getb(item(j, "door_baseline_valid"), c->door_baseline_valid);
+    if (c->door_baseline_cm < 20 || c->door_baseline_cm > 400) c->door_baseline_valid = false;
 
     if (get_str(j, "lang", tmp, 3) && (!strcmp(tmp, "ar") || !strcmp(tmp, "en"))) strlcpy(c->lang, tmp, sizeof(c->lang));
 

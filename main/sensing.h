@@ -1,5 +1,6 @@
 #pragma once
 #include <stdbool.h>
+#include <stdint.h>
 #include "esp_err.h"
 
 typedef struct {
@@ -11,6 +12,12 @@ typedef struct {
     float wander;
     int train_status;
     bool train_valid;
+    bool train_running;
+    bool train_complete;
+    uint16_t train_elapsed_s;
+    uint16_t train_remaining_s;
+    float trained_wander;
+    float trained_jitter;
 } sensing_snapshot_t;
 
 esp_err_t sensing_start(void);

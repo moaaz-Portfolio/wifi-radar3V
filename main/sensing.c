@@ -11,6 +11,7 @@
 #include "settings.h"
 #include "outputs.h"
 #include "notify.h"
+#include "door_sensor.h"
 
 static const char *TAG = "sensing";
 
@@ -23,6 +24,10 @@ static volatile bool s_ap_active = false, s_pair_active = false;
 static bool s_motion = false, s_presence = false;
 static int64_t s_last_motion_us = INT64_MIN / 2;
 static sensing_snapshot_t s_snap;
+static volatile bool s_train_running;
+static volatile bool s_train_complete;
+static int64_t s_train_started_us;
+#define ROOM_CALIBRATION_SECONDS 600
 
 static const uint8_t BROADCAST[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -78,6 +83,31 @@ static void logic_task(void *arg)
         }
         s_snap.motion = s_motion;
         s_snap.presence = s_presence;
+        s_snap.train_running = s_train_running;
+        s_snap.train_complete = s_train_complete;
+        if (s_train_running) {
+            uint32_t elapsed = (uint32_t)((now - s_train_started_us) / 1000000LL);
+            if (elapsed >= ROOM_CALIBRATION_SECONDS) {
+                float w = 0.0f, j = 0.0f;
+                s_train_running = false;
+                esp_err_t train_err = esp_wifi_sensing_fsm_train_stop(s_fsm, primary_mac(), &w, &j);
+                s_train_complete = (train_err == ESP_OK);
+                if (train_err == ESP_OK) {
+                    s_snap.trained_wander = w;
+                    s_snap.trained_jitter = j;
+                    ESP_LOGI(TAG, "10-minute room calibration completed (wander=%.3f jitter=%.3f)", w, j);
+                } else {
+                    ESP_LOGE(TAG, "automatic calibration stop failed: %s", esp_err_to_name(train_err));
+                }
+            }
+        }
+        if (s_train_running) {
+            uint32_t elapsed = (uint32_t)((now - s_train_started_us) / 1000000LL);
+            s_snap.train_elapsed_s = elapsed > ROOM_CALIBRATION_SECONDS ? ROOM_CALIBRATION_SECONDS : (uint16_t)elapsed;
+            s_snap.train_remaining_s = (uint16_t)(ROOM_CALIBRATION_SECONDS - s_snap.train_elapsed_s);
+        } else {
+            s_snap.train_remaining_s = 0;
+        }
 
         vTaskDelay(pdMS_TO_TICKS(100));
     }
@@ -126,6 +156,8 @@ esp_err_t sensing_start(void)
     if (pe != ESP_OK) ESP_LOGW(TAG, "router ping not started: %s", esp_err_to_name(pe));
 
     s_snap.running = true;
+    s_train_running = false;
+    s_train_complete = false;
     xTaskCreate(logic_task, "sense_logic", 4096, NULL, 4, NULL);
     ESP_LOGI(TAG, "sensing started (pair=%s, ping=%d Hz)", s_has_pair ? "yes" : "no", c->ping_hz);
     return ESP_OK;
@@ -178,17 +210,47 @@ void sensing_get(sensing_snapshot_t *out) { *out = s_snap; }
 
 esp_err_t sensing_train_start(void)
 {
-    return s_fsm ? esp_wifi_sensing_fsm_train_start(s_fsm, primary_mac()) : ESP_ERR_INVALID_STATE;
+    if (!s_fsm) return ESP_ERR_INVALID_STATE;
+    if (s_train_running) return ESP_ERR_INVALID_STATE;
+    esp_err_t e = esp_wifi_sensing_fsm_train_start(s_fsm, primary_mac());
+    if (e != ESP_OK) return e;
+    s_train_started_us = esp_timer_get_time();
+    s_train_running = true;
+    s_train_complete = false;
+    s_snap.train_elapsed_s = 0;
+    s_snap.train_remaining_s = ROOM_CALIBRATION_SECONDS;
+    (void)door_sensor_reset_baseline();
+    ESP_LOGI(TAG, "room calibration started for 600 seconds");
+    return ESP_OK;
 }
 
 esp_err_t sensing_train_stop(float *w, float *j)
 {
-    return s_fsm ? esp_wifi_sensing_fsm_train_stop(s_fsm, primary_mac(), w, j) : ESP_ERR_INVALID_STATE;
+    if (!s_fsm || !s_train_running) return ESP_ERR_INVALID_STATE;
+    s_train_running = false;
+    esp_err_t e = esp_wifi_sensing_fsm_train_stop(s_fsm, primary_mac(), w, j);
+    if (e == ESP_OK) {
+        s_snap.train_elapsed_s = (uint16_t)((esp_timer_get_time() - s_train_started_us) / 1000000LL);
+        s_train_complete = s_snap.train_elapsed_s >= ROOM_CALIBRATION_SECONDS;
+        s_snap.trained_wander = w ? *w : 0.0f;
+        s_snap.trained_jitter = j ? *j : 0.0f;
+    }
+    s_snap.train_running = false;
+    s_snap.train_complete = s_train_complete;
+    s_snap.train_remaining_s = 0;
+    return e;
 }
 
 esp_err_t sensing_train_remove(void)
 {
-    return s_fsm ? esp_wifi_sensing_fsm_train_remove(s_fsm, primary_mac()) : ESP_ERR_INVALID_STATE;
+    if (!s_fsm) return ESP_ERR_INVALID_STATE;
+    s_train_running = false;
+    s_train_complete = false;
+    s_snap.train_running = false;
+    s_snap.train_complete = false;
+    s_snap.train_elapsed_s = 0;
+    s_snap.train_remaining_s = 0;
+    return esp_wifi_sensing_fsm_train_remove(s_fsm, primary_mac());
 }
 
 esp_err_t sensing_reset_baseline(void)

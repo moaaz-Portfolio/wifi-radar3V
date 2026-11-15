@@ -19,9 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
+
+      - name: Check Python files and door packet protocol
+        run: |
+          python3 -m compileall -q wifi_radar/wifi_radar tools tests
+          python3 -m unittest discover -s tests -v
 
       - name: Build firmware for ESP32-S3 with Espressif CI
         uses: espressif/esp-idf-ci-action@v1
@@ -30,6 +35,9 @@ jobs:
           target: esp32s3
           path: .
           command: idf.py set-target esp32s3 && idf.py build && idf.py merge-bin -o merged.bin && test -s build/merged.bin && test -s build/esp32s3-wifi-radar.bin
+
+      - name: Fix firmware build file permissions
+        run: sudo chown -R "$(id -u):$(id -g)" build
 
       - name: Add on-board model to the flash image
         shell: bash

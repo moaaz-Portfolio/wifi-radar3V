@@ -5,15 +5,29 @@ import struct
 import threading
 import time
 
-PACKET = struct.Struct("<4sIHBBB")
-MAGIC = b"DOR1"
+PACKET_V1 = struct.Struct("<4sIHBBB")
+PACKET_V2 = struct.Struct("<4sIHBBBBBBH")
 
 
 def parse_packet(packet: bytes):
-    if len(packet) != PACKET.size:
+    if len(packet) == PACKET_V1.size:
+        magic, sequence, distance_cm, present, sensor_ok, buzzer_active = PACKET_V1.unpack(packet)
+        if magic != b"DOR1":
+            return None
+        crossing = False
+        baseline_valid = False
+        sensor_fault = False
+        baseline_cm = None
+    elif len(packet) == PACKET_V2.size:
+        (magic, sequence, distance_cm, present, sensor_ok, buzzer_active,
+         crossing, baseline_valid, sensor_fault, baseline_cm) = PACKET_V2.unpack(packet)
+        if magic != b"DOR2":
+            return None
+    else:
         return None
-    magic, sequence, distance_cm, present, sensor_ok, buzzer_active = PACKET.unpack(packet)
-    if magic != MAGIC or present not in (0, 1) or sensor_ok not in (0, 1) or buzzer_active not in (0, 1):
+
+    flags = (present, sensor_ok, buzzer_active, crossing, baseline_valid, sensor_fault)
+    if any(value not in (0, 1) for value in flags):
         return None
     return {
         "sequence": sequence,
@@ -21,6 +35,10 @@ def parse_packet(packet: bytes):
         "present": bool(present),
         "sensor_ok": bool(sensor_ok),
         "buzzer_active": bool(buzzer_active),
+        "crossing": bool(crossing),
+        "baseline_valid": bool(baseline_valid),
+        "baseline_cm": baseline_cm if baseline_valid else None,
+        "sensor_fault": bool(sensor_fault),
     }
 
 
@@ -36,6 +54,10 @@ class DoorReceiver:
             "present": False,
             "sensor_ok": False,
             "buzzer_active": False,
+            "crossing": False,
+            "baseline_valid": False,
+            "baseline_cm": None,
+            "sensor_fault": False,
             "sequence": 0,
         }
         self.error = ""
@@ -85,5 +107,7 @@ class DoorReceiver:
         state["error"] = self.error
         if not connected:
             state["present"] = False
+            state["crossing"] = False
             state["buzzer_active"] = False
+            state["sensor_fault"] = bool(last_seen)
         return state

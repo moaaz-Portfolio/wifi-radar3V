@@ -26,6 +26,8 @@ class RadarService : Service() {
     private var wasFallAlert = false
     private var wasLowCsi = false
     private var wasDoorPresent: Boolean? = null
+    private var wasDoorCrossing = false
+    private var wasDoorFault = false
 
     override fun onCreate() {
         super.onCreate()
@@ -68,6 +70,8 @@ class RadarService : Service() {
             val lowCsi = state.optDouble("loss", 0.0) >= 10.0
             val door = state.optJSONObject("door") ?: JSONObject()
             val doorPresent = door.optString("status", "unknown") == "present"
+            val doorCrossing = door.optBoolean("crossing", false)
+            val doorFault = door.optBoolean("sensor_fault", false)
 
             if (wasConnected == true && !connected && notifications.optBoolean("device_offline", true)) {
                 alert(201, "انقطع اتصال الجهاز", "تحقق من اتصال ESP32-S3 وجهاز المعالجة")
@@ -96,6 +100,16 @@ class RadarService : Service() {
             ) {
                 alert(207, "شخص عند الباب", "تم رصد وجود شخص أمام حساس الباب")
             }
+            if (!wasDoorCrossing && doorCrossing &&
+                notifications.optBoolean("door_crossing", true)
+            ) {
+                alert(208, "تم رصد عبور عند الباب", "تغيرت مسافة المسار عن خط الأساس؛ تحقق من الحدث")
+            }
+            if (!wasDoorFault && doorFault &&
+                notifications.optBoolean("door_sensor_fault", true)
+            ) {
+                alert(209, "عطل حساس الباب", "انقطعت قراءات المسافة؛ افحص الحساس والأسلاك")
+            }
 
             wasConnected = connected
             wasMoving = moving
@@ -103,6 +117,8 @@ class RadarService : Service() {
             wasFallAlert = fallAlert
             wasLowCsi = lowCsi
             wasDoorPresent = doorPresent
+            wasDoorCrossing = doorCrossing
+            wasDoorFault = doorFault
         } catch (_: Exception) {
             if (wasConnected == true) {
                 val config = runCatching { getJson("$base/api/config") }.getOrNull()

@@ -14,6 +14,8 @@ DEFAULT_NOTIFICATIONS = {
     "presence": True,
     "empty_room": False,
     "door_presence": True,
+    "door_crossing": True,
+    "door_sensor_fault": True,
     "device_offline": True,
     "csi_quality": False,
 }
@@ -29,10 +31,12 @@ def normalize_edition(value: str | None) -> str:
 
 def load_settings(path: str) -> dict:
     settings = {"notifications": dict(DEFAULT_NOTIFICATIONS),
-                "outputs": dict(DEFAULT_OUTPUTS)}
+                "outputs": dict(DEFAULT_OUTPUTS), "room_name": "غرفة"}
     try:
         with open(path, "r", encoding="utf-8") as stream:
             saved = json.load(stream)
+        if isinstance(saved.get("room_name"), str) and saved["room_name"].strip():
+            settings["room_name"] = saved["room_name"].strip()[:48]
         for section in ("notifications", "outputs"):
             if isinstance(saved.get(section), dict):
                 allowed = settings[section]

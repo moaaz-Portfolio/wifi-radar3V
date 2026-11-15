@@ -57,6 +57,8 @@ button.warnbtn{background:var(--warn);color:#19130a}.subtle{font-size:12px;color
 
 <div class="card">
   <h3 data-i="monitor_t"></h3>
+  <div class="g"><div><label data-i="room_name"></label><input id="roomName" maxlength="48" autocomplete="off" placeholder="مثلاً غرفة المعيشة"></div></div>
+  <p class="hint" data-i="door_install"></p>
   <div class="g">
     <div class="tile" id="presenceTile"><small data-i="presence_t"></small><strong id="presenceValue">غير معاير</strong><p id="presenceInfo"></p></div>
     <div class="tile" id="motionTile"><small data-i="motion_t"></small><strong id="motionValue">—</strong><p id="motionInfo"></p></div>
@@ -65,6 +67,7 @@ button.warnbtn{background:var(--warn);color:#19130a}.subtle{font-size:12px;color
   </div>
   <button class="p" id="calgo" data-i="cal_go"></button>
   <button class="s" id="calstop" data-i="cal_stop"></button>
+  <progress id="calpr" max="600" value="0" style="display:none"></progress>
   <button class="warnbtn" id="fallack" data-i="fall_ack" style="display:none"></button>
   <div class="subtle" id="calmsg"></div>
   <div class="hint" data-i="safety_note"></div>
@@ -79,6 +82,8 @@ button.warnbtn{background:var(--warn);color:#19130a}.subtle{font-size:12px;color
     <label class="notify-item"><span data-i="notif_presence"></span><input type="checkbox" id="notif_presence"></label>
     <label class="notify-item"><span data-i="notif_empty_room"></span><input type="checkbox" id="notif_empty_room"></label>
     <label class="notify-item"><span data-i="notif_door"></span><input type="checkbox" id="notif_door_presence"></label>
+    <label class="notify-item"><span data-i="notif_crossing"></span><input type="checkbox" id="notif_door_crossing"></label>
+    <label class="notify-item"><span data-i="notif_door_fault"></span><input type="checkbox" id="notif_door_sensor_fault"></label>
     <label class="notify-item"><span data-i="notif_offline"></span><input type="checkbox" id="notif_device_offline"></label>
     <label class="notify-item"><span data-i="notif_csi"></span><input type="checkbox" id="notif_csi_quality"></label>
   </div>
@@ -142,7 +147,7 @@ button.warnbtn{background:var(--warn);color:#19130a}.subtle{font-size:12px;color
 
 <script>
 const D={
-ar:{sub:"استشعار CSI · أربع فئات: غرفة فارغة، شخص ثابت، حركة، اكتشاف سقوط",door_t:"حساس الباب HC-SR04",door_offline:"الحساس غير متصل",door_present:"شخص عند الباب",door_clear:"لا يوجد شخص عند الباب",door_distance:"المسافة",api_token_title:"رمز ربط تطبيق الموبايل",enable_browser_notifications:"تفعيل إشعارات المتصفح",api_token_hint:"انسخ الرمز إلى تطبيق Android. لا تشاركه خارج شبكتك المحلية، وسيظل محفوظًا على جهاز المعالجة.",copy_api_token:"نسخ الرمز",notify_title:"إعدادات التنبيهات",notify_hint:"التغييرات تُحفظ على الجهاز وتُستخدم من الويب وتطبيق الموبايل. إيقاف التنبيه لا يوقف الاكتشاف أو تسجيل الحدث.",notif_fall:"اشتباه سقوط",notif_movement:"اكتشاف الحركة",notif_presence:"وجود شخص",notif_empty_room:"الغرفة أصبحت فارغة",notif_door:"شخص عند الباب",notif_offline:"انقطاع اتصال الجهاز",notif_csi:"انخفاض جودة إشارة CSI",notify_saved:"تم حفظ إعدادات التنبيه",notify_error:"تعذر حفظ الإعدادات",events_title:"سجل الأحداث الأخير",edition_factory:"نسخة المصنع",edition_user:"نسخة المستخدم",cal_user:"ابدأ معايرة الغرفة (10 دقائق)",cal_factory:"معايرة تجريبية (10 ثوانٍ)",monitor_t:"المراقبة المتكاملة · CSI",presence_t:"التواجد في الغرفة",motion_t:"الحركة",fall_t:"اكتشاف السقوط",cal_go:"عاير الغرفة وهي فاضية (10 ثواني)",cal_stop:"إلغاء المعايرة",fall_ack:"تأكيد مراجعة التنبيه وإخفاؤه",activity_t:"تصنيف النشاط المدرّب",safety_note:"تنبيه بحثي: النتائج تقديرية وليست نظام إنقاذ أو جهازًا طبيًا. راجع أي تنبيه بشريًا ولا تعتمد عليه وحده.",no_stream:"مفيش بث",fall_model_ready:"فئة اكتشاف السقوط موجودة في النموذج المدرّب",fall_model_need:"لا يوجد نموذج سقوط مدرّب؛ تنبيه السقوط القاعدي تجريبي",pres_unknown:"غير محدد",pres_yes:"فيه وجود محتمل",pres_no:"الغرفة فاضية غالبًا",pres_uncal:"غير معاير",pres_score:"مؤشر التغير",pres_cal_hint:"افرغ الغرفة ثم ابدأ المعايرة",moving:"فيه حركة",still:"ثابت حاليًا",motion_level:"شدة الحركة",motion_score:"مؤشر الحركة",fall_alert:"اشتباه سقوط — تحقّق الآن",fall_check:"فحص نمط حركة",fall_ready:"لا توجد إشارة حاليًا",impact:"شدة التغير",fall_model_p:"احتمال الموديل",cal_running:"جاري معايرة الغرفة:",heat_h:"خريطة CSI: الصفوف = الزمن، الأعمدة = الـ 64 subcarrier. التغيّر في الألوان = حركة.",
+ar:{sub:"استشعار CSI · أربع فئات: غرفة فارغة، شخص ثابت، حركة، اكتشاف سقوط",door_t:"حساس الباب HC-SR04",door_offline:"الحساس غير متصل",door_present:"شخص عند الباب",door_clear:"لا يوجد شخص عند الباب",door_distance:"المسافة",room_name:"اسم الغرفة",door_install:"ثبّت الجهاز بجوار الباب ووجّه حساس HC-SR04 عبر مسار العبور نحو سطح ثابت مقابل له. أثناء تعلم المسافة اترك الباب خاليًا. العبور تنبيه تقديري، وليس نظام حماية مضمونًا.",door_crossing:"عبور عند الباب",door_fault:"تعطل حساس الباب",door_baseline:"المسافة المرجعية",notif_crossing:"عبور أمام الباب",notif_door_fault:"عطل حساس الباب",api_token_title:"رمز ربط تطبيق الموبايل",enable_browser_notifications:"تفعيل إشعارات المتصفح",api_token_hint:"انسخ الرمز إلى تطبيق Android. لا تشاركه خارج شبكتك المحلية، وسيظل محفوظًا على جهاز المعالجة.",copy_api_token:"نسخ الرمز",notify_title:"إعدادات التنبيهات",notify_hint:"التغييرات تُحفظ على الجهاز وتُستخدم من الويب وتطبيق الموبايل. إيقاف التنبيه لا يوقف الاكتشاف أو تسجيل الحدث.",notif_fall:"اشتباه سقوط",notif_movement:"اكتشاف الحركة",notif_presence:"وجود شخص",notif_empty_room:"الغرفة أصبحت فارغة",notif_door:"شخص عند الباب",notif_offline:"انقطاع اتصال الجهاز",notif_csi:"انخفاض جودة إشارة CSI",notify_saved:"تم حفظ إعدادات التنبيه",notify_error:"تعذر حفظ الإعدادات",events_title:"سجل الأحداث الأخير",edition_factory:"نسخة المصنع",edition_user:"نسخة المستخدم",cal_user:"عاير الغرفة (10 دقائق)",cal_factory:"عاير الغرفة (10 دقائق)",monitor_t:"المراقبة المتكاملة · CSI",presence_t:"التواجد في الغرفة",motion_t:"الحركة",fall_t:"اكتشاف السقوط",cal_go:"ابدأ معايرة 10 دقائق",cal_stop:"إلغاء المعايرة",fall_ack:"تأكيد مراجعة التنبيه وإخفاؤه",activity_t:"تصنيف النشاط المدرّب",safety_note:"تنبيه بحثي: النتائج تقديرية وليست نظام إنقاذ أو جهازًا طبيًا. راجع أي تنبيه بشريًا ولا تعتمد عليه وحده.",no_stream:"مفيش بث",fall_model_ready:"فئة اكتشاف السقوط موجودة في النموذج المدرّب",fall_model_need:"لا يوجد نموذج سقوط مدرّب؛ تنبيه السقوط القاعدي تجريبي",pres_unknown:"غير محدد",pres_yes:"فيه وجود محتمل",pres_no:"الغرفة فاضية غالبًا",pres_uncal:"غير معاير",pres_score:"مؤشر التغير",pres_cal_hint:"افرغ الغرفة ثم ابدأ المعايرة",moving:"فيه حركة",still:"ثابت حاليًا",motion_level:"شدة الحركة",motion_score:"مؤشر الحركة",fall_alert:"اشتباه سقوط — تحقّق الآن",fall_check:"فحص نمط حركة",fall_ready:"لا توجد إشارة حاليًا",impact:"شدة التغير",fall_model_p:"احتمال الموديل",cal_running:"جاري معايرة الغرفة:",cal_room_required:"اكتب اسم الغرفة أولًا",cal_done:"اكتملت معايرة الغرفة",cal_cancelled:"تم إلغاء المعايرة",heat_h:"خريطة CSI: الصفوف = الزمن، الأعمدة = الـ 64 subcarrier. التغيّر في الألوان = حركة.",
  rec_t:"1) سجّل بياناتك",act:"النشاط",person:"معرّف الشخص",room:"المكان",secs:"مدة التسجيل (ثواني)",rec_go:"ابدأ التسجيل",rec_stop:"إلغاء",
  rec_tip:"سجّل 10 مرات أو أكثر لكل فئة، عبر أشخاص وغرف مختلفة. اجمع السقوط بمحاكاة آمنة ومتحكم فيها فقط، ولا تنفّذ سقوطًا حقيقيًا.",
  tr_t:"2) درّب الموديل",epochs:"عدد الحقب",tr_go:"ابدأ التدريب",tr_stop:"إيقاف",
@@ -151,7 +156,7 @@ ar:{sub:"استشعار CSI · أربع فئات: غرفة فارغة، شخص �
  st_countdown:"استعد… ",st_rec:"سجّل الحركة الآن: ",st_done:"✓ ",st_err:"✗ ",tdone:"خلص التدريب. دقة الاختبار",twarn:"الدقة دي على نفس المكان والشخص — جرّبه في أوضة تانية قبل ما تثق فيه.",
  trun:"التدريب شغال…",
  h:{empty_room:"الغرفة فاضية تمامًا",person_static:"شخص ثابت",movement:"شخص بيتحرك",fall_detection:"اشتباه سقوط"}},
-en:{sub:"CSI sensing · four classes: empty room, person static, movement, fall detection",door_t:"HC-SR04 door sensor",door_offline:"Sensor offline",door_present:"Person at the door",door_clear:"No person at the door",door_distance:"Distance",api_token_title:"Android connection token",enable_browser_notifications:"Enable browser notifications",api_token_hint:"Copy this token into the Android app. Keep it private and only use it on your trusted local network.",copy_api_token:"Copy token",notify_title:"Notification preferences",buzzer_title:"Allow door buzzer (after the door unit is connected)",notify_hint:"Changes are saved on the local device and shared by web and Android. Turning off a notification does not stop detection or event logging.",notif_fall:"Possible fall",notif_movement:"Movement detected",notif_presence:"Person present",notif_empty_room:"Room became empty",notif_door:"Person at the door",notif_offline:"Device disconnected",notif_csi:"Low CSI signal quality",notify_saved:"Notification settings saved",notify_error:"Could not save settings",events_title:"Recent events",edition_factory:"Factory Edition",edition_user:"User Edition",cal_user:"Calibrate room (10 minutes)",cal_factory:"Test calibration (10 seconds)",monitor_t:"Integrated CSI monitor",presence_t:"Room presence",motion_t:"Motion",fall_t:"Fall detection",cal_go:"Calibrate empty room (10 seconds)",cal_stop:"Cancel calibration",fall_ack:"Acknowledge and hide alert",activity_t:"Trained activity classifier",safety_note:"Research prototype only. Results are estimates, not a medical or emergency safety system. Verify every alert in person.",no_stream:"No stream",fall_model_ready:"The trained model includes the fall-detection class",fall_model_need:"No trained fall-detection class; heuristic alerts are experimental",pres_unknown:"Unknown",pres_yes:"Possible presence",pres_no:"Likely empty",pres_uncal:"Not calibrated",pres_score:"Change score",pres_cal_hint:"Empty the room, then start calibration",moving:"Motion detected",still:"Currently still",motion_level:"Motion level",motion_score:"Motion score",fall_alert:"Possible fall — check now",fall_check:"Checking movement pattern",fall_ready:"No current indication",impact:"Change peak",fall_model_p:"Model probability",cal_running:"Calibrating room:",heat_h:"CSI heat-map: rows = time, columns = the 64 subcarriers. Colour changes = movement.",
+en:{sub:"CSI sensing · four classes: empty room, person static, movement, fall detection",door_t:"HC-SR04 door sensor",door_offline:"Sensor offline",door_present:"Person near the door",door_clear:"No person near the door",door_distance:"Distance",room_name:"Room name",door_install:"Mount the device beside the doorway and aim the HC-SR04 across the crossing path at a fixed surface. Keep the path clear while it learns the baseline. Crossing alerts are estimates, not a guaranteed security system.",door_crossing:"Doorway crossing",door_fault:"Door sensor fault",door_baseline:"Reference distance",notif_crossing:"Doorway crossing",notif_door_fault:"Door sensor fault",api_token_title:"Android connection token",enable_browser_notifications:"Enable browser notifications",api_token_hint:"Copy this token into the Android app. Keep it private and only use it on your trusted local network.",copy_api_token:"Copy token",notify_title:"Notification preferences",buzzer_title:"Allow door buzzer (after the door unit is connected)",notify_hint:"Changes are saved on the local device and shared by web and Android. Turning off a notification does not stop detection or event logging.",notif_fall:"Possible fall",notif_movement:"Movement detected",notif_presence:"Person present",notif_empty_room:"Room became empty",notif_door:"Person at the door",notif_offline:"Device disconnected",notif_csi:"Low CSI signal quality",notify_saved:"Notification settings saved",notify_error:"Could not save settings",events_title:"Recent events",edition_factory:"Factory Edition",edition_user:"User Edition",cal_user:"Calibrate room (10 minutes)",cal_factory:"Calibrate room (10 minutes)",monitor_t:"Integrated CSI monitor",presence_t:"Room presence",motion_t:"Motion",fall_t:"Fall detection",cal_go:"Start 10-minute calibration",cal_stop:"Cancel calibration",fall_ack:"Acknowledge and hide alert",activity_t:"Trained activity classifier",safety_note:"Research prototype only. Results are estimates, not a medical or emergency safety system. Verify every alert in person.",no_stream:"No stream",fall_model_ready:"The trained model includes the fall-detection class",fall_model_need:"No trained fall-detection class; heuristic alerts are experimental",pres_unknown:"Unknown",pres_yes:"Possible presence",pres_no:"Likely empty",pres_uncal:"Not calibrated",pres_score:"Change score",pres_cal_hint:"Empty the room, then start calibration",moving:"Motion detected",still:"Currently still",motion_level:"Motion level",motion_score:"Motion score",fall_alert:"Possible fall — check now",fall_check:"Checking movement pattern",fall_ready:"No current indication",impact:"Change peak",fall_model_p:"Model probability",cal_running:"Calibrating room:",cal_room_required:"Enter a room name first",cal_done:"Room calibration complete",cal_cancelled:"Calibration cancelled",heat_h:"CSI heat-map: rows = time, columns = the 64 subcarriers. Colour changes = movement.",
  rec_t:"1) Record your data",act:"Activity",person:"Person ID",room:"Place",secs:"Duration (s)",rec_go:"Start recording",rec_stop:"Cancel",
  rec_tip:"Record 10 or more takes per class across people and rooms. Fall-detection samples must be safe, controlled simulations, never real falls.",
  tr_t:"2) Train the model",epochs:"Epochs",tr_go:"Start training",tr_stop:"Stop",
@@ -189,7 +194,8 @@ function draw(s){
  if(!s)return;
  document.querySelectorAll("[data-factory-only]").forEach(e=>e.style.display=s.edition==="factory"?"":"none");
  const m=s.monitor||{},f=s.fall||{},c=s.calibration||{};
- $("calgo").textContent=s.edition==="user"?t("cal_user"):t("cal_factory");
+ $("calgo").textContent=t("cal_go");
+ if(document.activeElement!==$("roomName"))$("roomName").value=s.room_name||"";
  const editionLabel=s.edition==="user"?t("edition_user"):t("edition_factory");
  const editionNode=document.querySelector("[data-i=edition_label]");if(editionNode)editionNode.textContent=editionLabel;
  syncNotifications(s.notifications||{});
@@ -209,7 +215,9 @@ function draw(s){
  $('fallack').style.display=f.status==='alert'?'':'none';
  $('calgo').disabled=!s.connected||c.status==='running';
  $('calstop').disabled=c.status!=='running';
- $('calmsg').textContent=c.status==='running'?`${t('cal_running')} ${c.left}s`:c.message||'';
+ $('calpr').style.display=c.status==='running'?'':'none';
+ $('calpr').value=Math.max(0,Math.min(600,600-(c.left||0)));
+ $('calmsg').textContent=c.status==='running'?`${t('cal_running')} ${Math.floor(c.left/60)}m ${c.left%60}s${c.room_name?' · '+c.room_name:''}`:c.status==='done'?t('cal_done'):c.message||'';
  $('chips').innerHTML=`<span class="chip ${s.connected?'ok':'bad'}">${s.connected?t('conn'):t('disc')}</span>`+
   (s.connected?`<span class="chip">${s.fps} ${t('fps')}</span><span class="chip ${s.loss>10?'warn':''}">${t('loss')} ${s.loss}%</span><span class="chip">RSSI ${s.rssi}</span>`:'')+
   (s.error?`<span class="chip bad">${s.error}</span>`:'');
@@ -221,8 +229,10 @@ function draw(s){
  $('modelmsg').textContent=s.model.loaded?'':(s.model.error||t('nomodel'));
   const door=s.door||{};
   $('doorValue').textContent=!door.connected?t('door_offline'):(door.present?t('door_present'):t('door_clear'));
-  $('doorInfo').textContent=door.connected&&door.distance_cm?(t('door_distance')+': '+door.distance_cm+' cm'):(door.error||'');
-  $('doorTile').className='tile '+(door.connected&&door.present?'good':'');
+  $('doorInfo').textContent=!door.connected?(door.error||''):(door.sensor_fault?t('door_fault'):(door.distance_cm?(t('door_distance')+': '+door.distance_cm+' cm'):''));
+  if(door.connected&&door.baseline_valid)$('doorInfo').textContent+=' · '+t('door_baseline')+': '+door.baseline_cm+' cm';
+  if(door.crossing)$('doorInfo').textContent+=' · '+t('door_crossing');
+  $('doorTile').className='tile '+(door.connected&&door.crossing?'good':door.sensor_fault?'alert':'');
   drawHeat(s.heat);drawEn(s.energy);
 
  const r=s.rec,busy=r.status=='countdown'||r.status=='recording';
@@ -244,7 +254,7 @@ function draw(s){
 function syncNotifications(values){Object.entries(values).forEach(([key,value])=>{const input=$("notif_"+key);if(input && document.activeElement!==input)input.checked=!!value})}
 let eventsInitialized=false;
 const seenEventIds=new Set();
-const eventPreference={fall:"fall",movement:"movement",presence:"presence",empty_room:"empty_room",device_offline:"device_offline",csi_quality:"csi_quality",door_presence:"door_presence"};
+const eventPreference={fall:"fall",movement:"movement",presence:"presence",empty_room:"empty_room",device_offline:"device_offline",csi_quality:"csi_quality",door_presence:"door_presence",door_crossing:"door_crossing",door_sensor_fault:"door_sensor_fault"};
 let eventToastTimer=null;
 function showEventToast(message){const box=$("eventToast");box.textContent=message;box.classList.add("show");clearTimeout(eventToastTimer);eventToastTimer=setTimeout(()=>box.classList.remove("show"),5000)}
 function renderEvents(events){
@@ -269,14 +279,14 @@ $("enableBrowserNotifications").onclick=async()=>{
  catch(e){$("notifyStatus").textContent="تعذر طلب إذن الإشعارات"}
 };
 async function saveNotification(key,value){try{const r=await api("/api/config",{notifications:{[key]:value}});if(!r.ok)throw new Error(r.error||"save failed");$("notifyStatus").textContent=t("notify_saved")}catch(e){$("notifyStatus").textContent=t("notify_error")}}
-["fall","movement","presence","empty_room","door_presence","device_offline","csi_quality"].forEach(key=>{const input=$("notif_"+key);input.addEventListener("change",()=>saveNotification(key,input.checked))});
+["fall","movement","presence","empty_room","door_presence","door_crossing","door_sensor_fault","device_offline","csi_quality"].forEach(key=>{const input=$("notif_"+key);input.addEventListener("change",()=>saveNotification(key,input.checked))});
 async function delLab(k){if(confirm(k+' ?'))await api('/api/label/delete',{label:k})}
 $('rgo').onclick=async()=>{const label=$('lab').value;
  const r=await api('/api/record',{label,person:$('person').value,room:$('room').value,seconds:+$('secs').value});if(!r.ok)alert(r.error)};
 $('rstop').onclick=()=>api('/api/record/stop',{});
 $('tgo').onclick=async()=>{const r=await api('/api/train',{epochs:+$('ep').value});if(!r.ok)alert(r.error)};
 $('tstop').onclick=()=>api('/api/train/stop',{});
-$('calgo').onclick=async()=>{const r=await api('/api/calibrate',{seconds:10});if(!r.ok)alert(r.error)};
+$('calgo').onclick=async()=>{const room=$('roomName').value.trim();if(!room){$('calmsg').textContent=t('cal_room_required');$('roomName').focus();return}const r=await api('/api/calibrate',{room_name:room});if(!r.ok)alert(r.error)};
 $('calstop').onclick=()=>api('/api/calibrate/stop',{});
 $('fallack').onclick=()=>api('/api/fall/ack',{});
 async function loadApiToken(){try{const response=await fetch('/api/token');if(!response.ok)throw new Error('local token endpoint unavailable');const payload=await response.json();apiToken=payload.token||'';$('apiToken').value=apiToken}catch(e){$('apiToken').value='افتح لوحة الويب من نفس جهاز المعالجة لعرض الرمز'}}

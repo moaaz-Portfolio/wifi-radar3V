@@ -153,6 +153,7 @@ static esp_err_t status_handler(httpd_req_t *req)
     cJSON_AddStringToObject(o, "mac", macs);
     cJSON_AddStringToObject(o, "ip", wifi_mgr_ip());
     cJSON_AddStringToObject(o, "hostname", c->hostname);
+    cJSON_AddStringToObject(o, "room_name", c->room_name);
     cJSON_AddNumberToObject(o, "role", c->role);
     cJSON_AddNumberToObject(o, "uptime", (double)(esp_timer_get_time() / 1000000LL));
     cJSON_AddNumberToObject(o, "heap", (double)esp_get_free_heap_size());
@@ -171,6 +172,12 @@ static esp_err_t status_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(o, "wander", (double)sn.wander);
     cJSON_AddNumberToObject(o, "train_status", sn.train_status);
     cJSON_AddBoolToObject(o, "train_valid", sn.train_valid);
+    cJSON_AddBoolToObject(o, "train_running", sn.train_running);
+    cJSON_AddBoolToObject(o, "train_complete", sn.train_complete);
+    cJSON_AddNumberToObject(o, "train_elapsed_s", sn.train_elapsed_s);
+    cJSON_AddNumberToObject(o, "train_remaining_s", sn.train_remaining_s);
+    cJSON_AddNumberToObject(o, "trained_wander", sn.trained_wander);
+    cJSON_AddNumberToObject(o, "trained_jitter", sn.trained_jitter);
     cJSON_AddBoolToObject(o, "mqtt", notify_mqtt_connected());
     cJSON_AddNumberToObject(o, "csi_sent", csi_stream_sent());
     cJSON_AddBoolToObject(o, "door_enabled", door.enabled);
@@ -179,6 +186,10 @@ static esp_err_t status_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(o, "door_present", door.present);
     cJSON_AddNumberToObject(o, "door_distance_cm", door.distance_cm);
     cJSON_AddBoolToObject(o, "buzzer_active", door.buzzer_active);
+    cJSON_AddBoolToObject(o, "door_crossing", door.crossing);
+    cJSON_AddBoolToObject(o, "door_sensor_fault", door.sensor_fault);
+    cJSON_AddBoolToObject(o, "door_baseline_valid", door.baseline_valid);
+    cJSON_AddNumberToObject(o, "door_baseline_cm", door.baseline_cm);
     if (c->role == 3) {
         radar_ai_snapshot_t ai;
         radar_ai_get(&ai);
@@ -213,7 +224,7 @@ static esp_err_t config_post_handler(httpd_req_t *req)
     settings_t old = *c;
     settings_apply_json(c, j, false);
     cJSON_Delete(j);
-    settings_save();
+    if (settings_save() != ESP_OK) { *c = old; return send_fail(req, "settings save failed"); }
 
     outputs_apply_settings(c);
     sensing_apply_settings();
@@ -274,19 +285,36 @@ static esp_err_t wifi_post_handler(httpd_req_t *req)
 static esp_err_t calibrate_handler(httpd_req_t *req)
 {
     if (!guard(req, true)) return ESP_OK;
-    cJSON *j = read_json(req, 128);
+    cJSON *j = read_json(req, 512);
     const cJSON *a = j ? cJSON_GetObjectItemCaseSensitive(j, "action") : NULL;
     const char *act = cJSON_IsString(a) ? a->valuestring : "";
-
     esp_err_t e = ESP_ERR_INVALID_ARG;
     float w = 0, jt = 0;
     bool stopped = false;
-    if (!strcmp(act, "start")) e = sensing_train_start();
-    else if (!strcmp(act, "stop")) { e = sensing_train_stop(&w, &jt); stopped = (e == ESP_OK); }
-    else if (!strcmp(act, "clear")) e = sensing_train_remove();
-    else if (!strcmp(act, "baseline")) e = sensing_reset_baseline();
+    settings_t *cfg = settings_get();
+    if (!strcmp(act, "start")) {
+        const cJSON *room = j ? cJSON_GetObjectItemCaseSensitive(j, "room_name") : NULL;
+        if (!cJSON_IsString(room) || !room->valuestring || room->valuestring[0] == 0) {
+            if (j) cJSON_Delete(j);
+            return send_fail(req, "enter a room name first");
+        }
+        strlcpy(cfg->room_name, room->valuestring, sizeof(cfg->room_name));
+        if (settings_save() != ESP_OK) {
+            if (j) cJSON_Delete(j);
+            return send_fail(req, "room name could not be saved");
+        }
+        e = sensing_train_start();
+    } else if (!strcmp(act, "stop")) {
+        e = sensing_train_stop(&w, &jt);
+        stopped = (e == ESP_OK);
+    } else if (!strcmp(act, "clear")) {
+        e = sensing_train_remove();
+    } else if (!strcmp(act, "baseline")) {
+        e = sensing_reset_baseline();
+    } else if (!strcmp(act, "door-baseline")) {
+        e = door_sensor_reset_baseline();
+    }
     if (j) cJSON_Delete(j);
-
     if (e != ESP_OK) return send_fail(req, esp_err_to_name(e));
     cJSON *o = cJSON_CreateObject();
     cJSON_AddBoolToObject(o, "ok", true);
@@ -296,7 +324,6 @@ static esp_err_t calibrate_handler(httpd_req_t *req)
     }
     return send_json(req, o);
 }
-
 static esp_err_t reboot_handler(httpd_req_t *req)
 {
     if (!guard(req, true)) return ESP_OK;
